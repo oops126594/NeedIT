@@ -1,0 +1,256 @@
+{
+  "Meta": {
+    "title": "NEEDIT",
+    "description": "Find what you need from nearby stores and get it delivered."
+  },
+  "Common": {
+    "skip": "Skip to content",
+    "loading": "Loading",
+    "error": "Something went wrong.",
+    "retry": "Try again",
+    "back": "Back",
+    "backHome": "Back to search",
+    "notFoundTitle": "We can't find that page",
+    "notFoundBody": "The link may be old, or the item is no longer listed.",
+    "open": "Open",
+    "closed": "Closed",
+    "inStock": "Available",
+    "lowStock": "Only a few left",
+    "outOfStock": "Out of stock",
+    "deliveryWindow": "{min}–{max} min",
+    "distance": "{distance} km",
+    "rating": "Rated {rating} out of 5",
+    "reviews": "{count} reviews",
+    "freshness": {
+      "today": "Availability checked today",
+      "recent": "Availability checked recently",
+      "stale": "Availability may be out of date"
+    }
+  },
+  "Nav": {
+    "home": "Home",
+    "orders": "Orders",
+    "support": "Help",
+    "account": "Account",
+    "cart": "Cart",
+    "notifications": "Notifications",
+    "language": "Language"
+  },
+  "Home": {
+    "headline": "What do you need?",
+    "tagline": "Need it? Get it.",
+    "placeholder": "Try “USB-C cable”",
+    "searchLabel": "What do you need?",
+    "searchSubmit": "Search",
+    "searchRequired": "Tell us what you need.",
+    "categories": "Categories",
+    "recent": "Recent searches",
+    "popular": "Popular needs",
+    "nearby": "Nearby stores",
+    "serviceArea": "Showing stores in central Riyadh.",
+    "locationLabel": "Delivery area",
+    "locationHelp": "This sets the address area for checkout. Stock on this prototype is for central Riyadh."
+  },
+  "Categories": {
+    "school": "School",
+    "home": "Home",
+    "tech": "Tech",
+    "car": "Car",
+    "gifts": "Gifts",
+    "party": "Party",
+    "pets": "Pets",
+    "stationery": "Stationery"
+  },
+  "Search": {
+    "title": "Search",
+    "prompt": "Search nearby stores",
+    "resultsFor": "Results for “{query}”",
+    "resultCount": "{count, plural, one {# result} other {# results}}",
+    "empty": "Nothing nearby matches that.",
+    "emptyHint": "Try a product name, like a cable, notebook, or balloons.",
+    "needPhrase": "These are product matches from nearby stores. A suggested basket for a whole need is not part of this prototype.",
+    "sorted": "Best matches first, then faster nearby options."
+  },
+  "Product": {
+    "add": "Add to cart",
+    "increase": "Increase quantity",
+    "decrease": "Decrease quantity",
+    "quantity": "Quantity",
+    "inCart": "In your cart: {count}",
+    "otherStoreTitle": "Your cart is from another store",
+    "otherStoreBody": "One order is one store. Replace {store} with this item?",
+    "replace": "Replace cart",
+    "keep": "Keep current cart",
+    "closedNote": "This store is closed. You can look, but checkout waits until it opens.",
+    "unavailable": "This item is out of stock."
+  },
+  "Store": {
+    "title": "Store",
+    "products": "Available products",
+    "empty": "This store has no listed products.",
+    "closedNote": "Closed right now. Products stay visible so you can see what they carry."
+  },
+  "Cart": {
+    "title": "Cart",
+    "empty": "Your cart is empty.",
+    "emptyAction": "Search for something",
+    "oneStore": "One order is one store.",
+    "from": "From {store}",
+    "subtotal": "Subtotal",
+    "delivery": "Delivery",
+    "total": "Total",
+    "checkout": "Checkout",
+    "closed": "This store is closed, so checkout is paused.",
+    "remove": "Remove {name}",
+    "loading": "Loading your cart"
+  },
+  "Checkout": {
+    "title": "Checkout",
+    "address": "Delivery address",
+    "recipient": "Name",
+    "phone": "Mobile number",
+    "district": "District",
+    "line": "Street and building",
+    "instructions": "Delivery instructions",
+    "instructionsHint": "Optional. Gate code, floor, or where to leave the bag.",
+    "payment": "Payment",
+    "cod": "Cash on delivery",
+    "codHelp": "Pay the courier when the order arrives. Simulated in this prototype.",
+    "card": "Card",
+    "cardHelp": "Demo payment. Nothing is charged.",
+    "cardNumber": "Card number",
+    "expiry": "Expiry",
+    "cvc": "CVC",
+    "demoNote": "Demo only. No card is charged, and the full number is not stored.",
+    "place": "Place order",
+    "placing": "Placing order…",
+    "eta": "Estimated arrival: {range} min",
+    "errors": {
+      "recipient": "Enter the recipient's name.",
+      "phone": "Enter a Saudi mobile number.",
+      "district": "Enter the district.",
+      "line": "Enter the street and building.",
+      "number": "Enter a 16-digit card number.",
+      "expiry": "Enter a future expiry as MM/YY.",
+      "cvc": "Enter the 3-digit CVC.",
+      "type": "Choose a payment method.",
+      "closed": "The store is closed, so this order cannot be placed.",
+      "empty": "Your cart is empty.",
+      "unavailable": "An item in the cart is no longer available.",
+      "mixed": "The cart has items from more than one store."
+    }
+  },
+  "Order": {
+    "title": "Order",
+    "history": "Your orders",
+    "historyTitle": "Orders",
+    "empty": "No orders yet.",
+    "emptyAction": "Find something nearby",
+    "eta": "Estimated arrival: {range} min",
+    "arriving": "Arriving in ~{minutes} min",
+    "delivered": "Delivered",
+    "cancel": "Cancel order",
+    "confirmCancel": "Cancel this order?",
+    "confirmYes": "Yes, cancel",
+    "confirmNo": "Keep it",
+    "tooLate": "This order can no longer be cancelled.",
+    "rate": "Rate this order",
+    "star": "{count} stars",
+    "thanks": "Thanks for the rating.",
+    "support": "Report an issue",
+    "simulated": "Delivery status is simulated in this prototype.",
+    "notFound": "That order is not on this device.",
+    "paymentCod": "Cash on delivery",
+    "paymentCard": "Card ending {last4}",
+    "items": "Items",
+    "notification": "{orderId} · {status}",
+    "status": {
+      "PLACED": "Order placed",
+      "ACCEPTED": "Accepted",
+      "PREPARING": "Preparing",
+      "READY_FOR_PICKUP": "Ready for pickup",
+      "COURIER_ASSIGNED": "Courier assigned",
+      "PICKED_UP": "Picked up",
+      "OUT_FOR_DELIVERY": "On the way",
+      "DELIVERED": "Delivered",
+      "CANCELLED": "Cancelled",
+      "REJECTED": "Rejected",
+      "FAILED": "Failed"
+    },
+    "detail": {
+      "PLACED": "The store has your order.",
+      "ACCEPTED": "The store accepted it.",
+      "PREPARING": "The store is packing it.",
+      "READY_FOR_PICKUP": "Waiting for the courier.",
+      "COURIER_ASSIGNED": "A courier is heading to the store.",
+      "PICKED_UP": "The courier has the order.",
+      "OUT_FOR_DELIVERY": "It is on the way to you.",
+      "DELIVERED": "It has arrived."
+    }
+  },
+  "Support": {
+    "title": "Help",
+    "intro": "Tell us what went wrong with an order. This stays on your device in the prototype.",
+    "order": "Order number",
+    "orderHint": "Optional",
+    "type": "Issue",
+    "choose": "Choose an issue",
+    "message": "What happened?",
+    "send": "Send",
+    "sending": "Sending…",
+    "sent": "Request {id} is saved on this device.",
+    "another": "Send another",
+    "yours": "Requests on this device",
+    "faqTitle": "Common questions",
+    "errors": {
+      "type": "Choose an issue type.",
+      "message": "Describe the issue in a few words."
+    },
+    "types": {
+      "missing": "Missing item",
+      "wrong": "Wrong item",
+      "damaged": "Damaged item",
+      "late": "Late delivery",
+      "cancelled": "Order cancelled",
+      "payment": "Payment issue",
+      "merchant": "Merchant issue",
+      "other": "Other"
+    },
+    "faq": {
+      "delivery": {
+        "q": "How fast is delivery?",
+        "a": "Each store shows its own estimate. This prototype simulates the courier instead of dispatching one."
+      },
+      "area": {
+        "q": "Where does NEEDIT deliver?",
+        "a": "The pilot is central Riyadh. One order comes from one store."
+      },
+      "payment": {
+        "q": "How do I pay?",
+        "a": "Cash on delivery, or a demo card. No real charge is made."
+      },
+      "cancel": {
+        "q": "Can I cancel?",
+        "a": "You can cancel while the order is placed or just accepted. After preparation starts, this prototype will not cancel it."
+      }
+    }
+  },
+  "Account": {
+    "title": "Account",
+    "guest": "Shopping as a guest",
+    "guestBody": "Accounts and sign-in come with the live marketplace. This prototype keeps your cart and orders on this device.",
+    "language": "Language",
+    "location": "Delivery area",
+    "orders": "View orders",
+    "support": "Contact support"
+  },
+  "Toast": {
+    "added": "Added to cart",
+    "replaced": "Cart replaced"
+  },
+  "Notifications": {
+    "title": "Notifications",
+    "empty": "No updates yet.",
+    "markRead": "Mark as read"
+  }
+}
