@@ -2,6 +2,7 @@
 
 import { Link } from "@/i18n/navigation";
 import { formatSar } from "@/lib/money";
+import { productImage } from "@/lib/photos";
 import { MAX_QUANTITY } from "@/lib/orders";
 import { textOf } from "@/lib/text";
 import { BackButton } from "@/components/back-button";
@@ -49,7 +50,12 @@ export function CartView() {
         {summary.detailed.map((item) => (
           <li key={item.product.id} className="rounded-2xl border border-line p-3">
             <div className="flex items-start justify-between gap-3">
-              <div>
+              <img
+                src={productImage(item.product.id)}
+                alt=""
+                className="size-16 shrink-0 rounded-lg bg-[#f3f4f6] object-contain p-1"
+              />
+              <div className="min-w-0 flex-1">
                 <p className="font-semibold">{textOf(item.product.name, locale)}</p>
                 <p className="text-sm text-muted tabular-nums">{formatSar(item.product.priceHalalas, locale)}</p>
               </div>
@@ -102,7 +108,7 @@ export function CartView() {
         </div>
       </dl>
       <div className="h-28" />
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 mx-auto w-full max-w-[480px] border-t border-line bg-card/95 px-4 py-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-line bg-white px-4 py-3 md:bottom-0">
         {closed ? (
           <p className="text-center text-sm text-warn">{t("closed")}</p>
         ) : (

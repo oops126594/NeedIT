@@ -67,7 +67,7 @@ export function CheckoutForm() {
 
   const range = `${formatNumber(summary.store.deliveryMinMinutes, locale)}–${formatNumber(summary.store.deliveryMaxMinutes, locale)}`;
 
-  function onSubmit(event: FormEvent<HTMLFormElement>) {
+  async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (pending) return;
     const nextErrors: FieldErrors = {};
@@ -89,7 +89,7 @@ export function CheckoutForm() {
 
     setPending(true);
     leaving.current = true;
-    const result = placeOrder({
+    const result = await placeOrder({
       address: {
         recipient: recipient.trim(),
         phone: phone.trim(),
@@ -112,7 +112,7 @@ export function CheckoutForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="flex flex-col gap-5 px-4 py-5" noValidate>
+    <form onSubmit={(event) => void onSubmit(event)} className="flex flex-col gap-5 px-4 py-5" noValidate>
       <ViewBeacon event="checkout_started" />
       <BackButton />
       <h1 className="text-2xl font-semibold">{t("title")}</h1>
@@ -213,7 +213,7 @@ export function CheckoutForm() {
         </div>
       </dl>
       <div className="h-28" />
-      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 mx-auto w-full max-w-[480px] border-t border-line bg-card/95 px-4 py-3 backdrop-blur">
+      <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-20 border-t border-line bg-white px-4 py-3 md:bottom-0">
         <button type="submit" className={primaryButtonClass} disabled={pending || !summary.store.isOpen}>
           {pending ? t("placing") : `${t("place")} · ${formatSar(summary.total, locale)}`}
         </button>

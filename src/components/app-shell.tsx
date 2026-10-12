@@ -1,14 +1,20 @@
 "use client";
 
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
+import { formatTime } from "@/lib/format";
 import { getLocation, SERVICE_LOCATIONS, type LocationId } from "@/lib/locations";
+import { productImage } from "@/lib/photos";
 import { textOf } from "@/lib/text";
+import type { AppNotification } from "@/lib/types";
 import type { AppLocale } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import { useEffect, useState, type ReactNode } from "react";
+import { Suspense, useEffect, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { SearchForm } from "@/components/search-form";
 import { BagIcon, BellIcon, CartIcon, HelpIcon, HomeIcon, PinIcon, UserIcon } from "@/components/icons";
 import { useShop } from "@/components/shop-provider";
 import { useAppLocale } from "@/components/use-app-locale";
+import { useOrderAlerts, type AlertPermission } from "@/components/use-order-alerts";
 
 const iconButtonClass =
   "relative inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-paper";
@@ -110,7 +116,8 @@ export function AppShell({ children }: { children: ReactNode }) {
     document.documentElement.lang = locale;
     document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
   }, [locale]);
-  const { cartCount, unreadCount, locationId, toast, shop, ready, markNotificationsRead } = useShop();
+  const { cartCount, locationId, toast, shop, ready, markNotificationsRead } = useShop();
+  const alerts = useOrderAlerts(shop.notifications, locale);
   const [panel, setPanel] = useState<"location" | "notifications" | null>(null);
   const location = getLocation(locationId);
 
@@ -135,23 +142,37 @@ export function AppShell({ children }: { children: ReactNode }) {
   ] as const;
 
   return (
-    <div className="relative mx-auto flex min-h-dvh w-full max-w-[480px] flex-col bg-card md:shadow-[0_0_0_1px_rgba(26,24,20,0.08)]">
+    <div className="relative flex min-h-dvh w-full flex-col bg-paper">
       <a
         href="#content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-3 focus:rounded-full focus:bg-accent focus:px-4 focus:py-2 focus:text-accent-ink"
       >
         {tCommon("skip")}
       </a>
-      <header className="sticky top-0 z-30 border-b border-line bg-card/95 px-4 py-3 backdrop-blur">
-        <div className="flex items-center justify-between gap-2">
-          <Link href="/" className="flex items-center gap-2 rounded-full">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-accent text-sm font-bold text-accent-ink">
-              N
-            </span>
-            <span className="text-lg font-bold tracking-tight">NEEDIT</span>
+      <header className="sticky top-0 z-30 border-b border-line bg-white">
+        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
+          <Link href="/" dir="ltr" aria-label="NEEDIT" className="inline-flex shrink-0 items-center">
+            <img src="/logo.png" alt="" className="h-12 w-auto" />
           </Link>
-          <div className="flex items-center">
-            <LocaleSwitch />
+          <button
+            type="button"
+            className="min-w-0 text-start"
+            aria-expanded={panel === "location"}
+            onClick={() => setPanel((current) => (current === "location" ? null : "location"))}
+          >
+            <span className="block text-sm font-bold leading-tight">{tHome("deliveryTime")}</span>
+            <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
+              <PinIcon className="size-3.5 shrink-0" />
+              <span className="truncate">{textOf(location.name, locale)}</span>
+            </span>
+          </button>
+          <div className="order-last w-full shrink-0 md:order-none md:w-auto md:min-w-0 md:flex-1">
+            <Suspense fallback={<div className="h-11 rounded-xl bg-paper" />}>
+              <HeaderSearch />
+            </Suspense>
+          </div>
+          <div className="ms-auto flex items-center gap-1">
+            <LocaleSwitch className="inline-flex h-10 items-center rounded-lg px-2 text-sm font-semibold text-ink" />
             <button
               type="button"
               className={iconButtonClass}
@@ -159,33 +180,32 @@ export function AppShell({ children }: { children: ReactNode }) {
               aria-label={t("notifications")}
               onClick={() => {
                 setPanel((current) => (current === "notifications" ? null : "notifications"));
-                if (panel !== "notifications") markNotificationsRead();
+                if (panel !== "notifications") {
+                  markNotificationsRead();
+                  alerts.markRead();
+                }
               }}
             >
               <BellIcon />
-              {ready && unreadCount > 0 ? (
-                <span className="absolute end-1.5 top-1.5 size-2 rounded-full bg-danger" />
+              {ready && alerts.unread > 0 ? (
+                <span className="absolute end-2 top-2 min-w-4 rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-4 text-white">
+                  {alerts.unread > 9 ? "9+" : alerts.unread}
+                </span>
               ) : null}
             </button>
-            <Link href="/cart" className={iconButtonClass} aria-label={t("cart")}>
-              <CartIcon />
+            <Link
+              href="/cart"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-semibold"
+              aria-label={t("cart")}
+            >
+              <CartIcon className="size-5" />
+              <span className="hidden sm:inline">{t("cart")}</span>
               {ready && cartCount > 0 ? (
-                <span className="absolute end-1 top-1 min-w-4 rounded-full bg-accent px-1 text-center text-[10px] font-bold leading-4 text-accent-ink">
-                  {cartCount}
-                </span>
+                <span className="rounded-md bg-accent px-1.5 text-xs font-bold text-white">{cartCount}</span>
               ) : null}
             </Link>
           </div>
         </div>
-        <button
-          type="button"
-          className="mt-2 inline-flex min-h-10 items-center gap-1.5 rounded-full text-sm font-medium text-ink"
-          aria-expanded={panel === "location"}
-          onClick={() => setPanel((current) => (current === "location" ? null : "location"))}
-        >
-          <PinIcon className="size-4 text-accent-text" />
-          <span>{textOf(location.name, locale)}</span>
-        </button>
         {panel === "location" ? (
           <div className="mt-2 rounded-2xl border border-line bg-card p-3 shadow-lg">
             <p className="mb-2 text-sm font-semibold">{tHome("locationLabel")}</p>
@@ -193,34 +213,34 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
         {panel === "notifications" ? (
-          <div className="mt-2 max-h-72 overflow-auto rounded-2xl border border-line bg-card p-3 shadow-lg">
-            <p className="mb-2 text-sm font-semibold">{tNotes("title")}</p>
-            {shop.notifications.length === 0 ? (
-              <p className="text-sm text-muted">{tNotes("empty")}</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {shop.notifications.map((note) => (
-                  <li key={note.id}>
-                    <Link
-                      href={`/orders/${note.orderId}`}
-                      className="block rounded-xl bg-paper px-3 py-2 text-sm"
-                    >
-                      {tOrder("notification", {
-                        orderId: note.orderId,
-                        status: tOrder(`status.${note.status}`),
-                      })}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
+          <div className="border-t border-line bg-white px-4 py-3">
+            <div className="mx-auto w-full max-w-md">
+              <p className="text-sm font-semibold">{tNotes("title")}</p>
+              <AlertOptIn
+                signedIn={alerts.signedIn}
+                permission={alerts.permission}
+                pushReady={alerts.pushReady}
+                onEnable={() => void alerts.enable()}
+              />
+              {alerts.notes.length === 0 ? (
+                <p className="mt-3 text-sm text-muted">{tNotes("empty")}</p>
+              ) : (
+                <ul className="mt-3 flex max-h-80 flex-col gap-2 overflow-auto">
+                  {alerts.notes.map((note) => (
+                    <li key={note.id}>
+                      <NotificationRow note={note} />
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         ) : null}
       </header>
-      <main id="content" className="flex-1 pb-28">
+      <main id="content" className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-4 md:pb-10">
         {children}
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 mx-auto flex w-full max-w-[480px] border-t border-line bg-card pb-[env(safe-area-inset-bottom)]">
+      <nav className="fixed inset-x-0 bottom-0 z-30 flex w-full border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -238,6 +258,19 @@ export function AppShell({ children }: { children: ReactNode }) {
           );
         })}
       </nav>
+      {alerts.banner ? (
+        <Link
+          href={`/orders/${alerts.banner.orderId}`}
+          onClick={alerts.dismiss}
+          className="fixed inset-x-4 top-20 z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-lg"
+        >
+          <img src="/mark.png" alt="" className="size-11 shrink-0" />
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-semibold">{tOrder(`status.${alerts.banner.status}`)}</span>
+            <span className="mt-0.5 block text-sm text-muted">{tOrder(`detail.${alerts.banner.status}`)}</span>
+          </span>
+        </Link>
+      ) : null}
       {toast ? (
         <p
           role="status"
@@ -248,6 +281,98 @@ export function AppShell({ children }: { children: ReactNode }) {
       ) : null}
     </div>
   );
+}
+
+function ageLabel(
+  createdAt: number,
+  locale: AppLocale,
+  t: ReturnType<typeof useTranslations<"Notifications">>,
+) {
+  const minutes = Math.max(0, Math.round((Date.now() - createdAt) / 60000));
+  if (minutes < 1) return t("justNow");
+  if (minutes < 60) return t("minutesAgo", { count: minutes });
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return t("hoursAgo", { count: hours });
+  return formatTime(createdAt, locale);
+}
+
+function NotificationRow({ note }: { note: AppNotification }) {
+  const tOrder = useTranslations("Order");
+  const tNotes = useTranslations("Notifications");
+  const locale = useAppLocale();
+
+  return (
+    <Link href={`/orders/${note.orderId}`} className="flex items-center gap-3 rounded-xl bg-paper px-3 py-2">
+      <img
+        src={note.productId ? productImage(note.productId) : "/mark.png"}
+        alt=""
+        className="size-11 shrink-0 rounded-lg bg-white object-contain"
+      />
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline justify-between gap-2">
+          <span className="truncate text-sm font-semibold">{tOrder(`status.${note.status}`)}</span>
+          <span className="shrink-0 text-xs text-muted">{ageLabel(note.createdAt, locale, tNotes)}</span>
+        </span>
+        <span className="mt-0.5 block truncate text-sm text-muted">
+          {note.orderId}
+          <span aria-hidden="true"> · </span>
+          {tOrder(`detail.${note.status}`)}
+        </span>
+      </span>
+    </Link>
+  );
+}
+
+function AlertOptIn({
+  signedIn,
+  permission,
+  pushReady,
+  onEnable,
+}: {
+  signedIn: boolean | null;
+  permission: AlertPermission;
+  pushReady: boolean | null;
+  onEnable: () => void;
+}) {
+  const t = useTranslations("Notifications");
+
+  if (signedIn === false) {
+    return (
+      <Link href="/account" className="mt-3 block rounded-xl bg-accent-soft px-3 py-3 text-sm font-semibold text-accent-text">
+        {t("signIn")}
+      </Link>
+    );
+  }
+
+  if (permission === "granted" && pushReady !== false) {
+    return <p className="mt-3 rounded-xl bg-accent-soft px-3 py-3 text-sm font-semibold text-accent-text">{t("enabled")}</p>;
+  }
+
+  if (permission === "granted" && pushReady === false) {
+    return <p className="mt-3 text-sm text-muted">{t("unsupported")}</p>;
+  }
+
+  if (permission === "denied") {
+    return <p className="mt-3 text-sm text-muted">{t("blocked")}</p>;
+  }
+
+  if (permission === "unsupported") {
+    return <p className="mt-3 text-sm text-muted">{t("unsupported")}</p>;
+  }
+
+  return (
+    <div className="mt-3 rounded-xl border border-line px-3 py-3">
+      <p className="text-sm text-muted">{t("enableHelp")}</p>
+      <button type="button" onClick={onEnable} className="mt-2 h-10 rounded-lg bg-accent px-3 text-sm font-semibold text-white">
+        {t("enable")}
+      </button>
+    </div>
+  );
+}
+
+function HeaderSearch() {
+  const params = useSearchParams();
+  return <SearchForm initialQuery={params.get("q") ?? ""} variant="bar" />;
 }
 
 export type { LocationId };

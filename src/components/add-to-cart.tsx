@@ -12,9 +12,11 @@ import { useState } from "react";
 export function AddToCart({
   productId,
   withQuantity = false,
+  compact = false,
 }: {
   productId: string;
   withQuantity?: boolean;
+  compact?: boolean;
 }) {
   const t = useTranslations("Product");
   const locale = useAppLocale();
@@ -66,7 +68,13 @@ export function AddToCart({
       ) : null}
       <button
         type="button"
-        className={withQuantity ? primaryButtonClass : `${primaryButtonClass} min-h-11 w-auto px-4 text-sm`}
+        className={
+          compact
+            ? "h-8 min-h-0 w-auto rounded-lg border border-accent bg-[#f3faf5] px-3 text-xs font-bold uppercase tracking-wide text-accent-text disabled:opacity-40"
+            : withQuantity
+              ? primaryButtonClass
+              : `${primaryButtonClass} min-h-11 w-auto px-4 text-sm`
+        }
         disabled={!ready || unavailable || closed}
         onClick={() => submit(false)}
       >

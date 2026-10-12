@@ -1,4 +1,4 @@
-import { getStore, PRODUCTS } from "@/lib/catalog";
+import { PRODUCTS, STORES } from "@/lib/catalog";
 import { normalize, tokenize } from "@/lib/text";
 import type { CategoryId, Product, Store } from "@/lib/types";
 
@@ -141,8 +141,10 @@ function tokenScore(queryToken: string, nameTokens: string[], otherTokens: strin
   return best;
 }
 
-const INDEX: IndexedProduct[] = PRODUCTS.flatMap((product) => {
-  const store = getStore(product.storeId);
+function buildIndex(products: Product[], stores: Store[]): IndexedProduct[] {
+  const storeById = new Map(stores.map((store) => [store.id, store]));
+  return products.flatMap((product) => {
+  const store = storeById.get(product.storeId);
   if (!store) return [];
   const nameTokens = unique([
     ...tokenize(product.name.en),
@@ -167,7 +169,8 @@ const INDEX: IndexedProduct[] = PRODUCTS.flatMap((product) => {
       nameNorm: normalize(`${product.name.en} ${product.name.ar}`),
     },
   ];
-});
+  });
+}
 
 export type SearchHit = {
   product: Product;
@@ -190,7 +193,11 @@ function situationalScore(product: Product, store: Store): number {
   return availability + distance + speed + reliability;
 }
 
-export function searchCatalog(rawQuery: string): SearchResult {
+export function searchCatalog(
+  rawQuery: string,
+  products: Product[] = PRODUCTS,
+  stores: Store[] = STORES,
+): SearchResult {
   const query = rawQuery.trim().slice(0, 80);
   const meaningful = tokenize(query).filter((token) => !STOPWORDS.has(token));
   const needPhrase = NEED_PATTERN.test(query) || meaningful.length >= 6;
@@ -203,7 +210,7 @@ export function searchCatalog(rawQuery: string): SearchResult {
     meaningful.length <= 3 ? meaningful.length : Math.max(2, Math.ceil(meaningful.length * 0.6));
   const phrase = normalize(query);
 
-  const hits = INDEX.flatMap((entry) => {
+  const hits = buildIndex(products, stores).flatMap((entry) => {
     const scores = meaningful.map((token) =>
       tokenScore(token, entry.nameTokens, entry.otherTokens),
     );

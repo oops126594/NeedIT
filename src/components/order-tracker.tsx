@@ -9,8 +9,21 @@ import { BackButton } from "@/components/back-button";
 import { useShop } from "@/components/shop-provider";
 import { primaryButtonClass, secondaryButtonClass } from "@/components/styles";
 import { useAppLocale } from "@/components/use-app-locale";
+import type { CustomerOrder, OrderStatus } from "@/lib/types";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+type TrackedOrder = CustomerOrder & { status: OrderStatus };
+
+function fromServer(order: TrackedOrder): TrackedOrder {
+  const terminal = order.status === "CANCELLED" || order.status === "REJECTED" || order.status === "FAILED";
+  return {
+    ...order,
+    notifiedStatus: order.status,
+    persistedStatus: order.status,
+    frozenStatus: terminal ? (order.status as "CANCELLED" | "REJECTED" | "FAILED") : undefined,
+  };
+}
 
 export function OrderTracker({ id }: { id: string }) {
   const t = useTranslations("Order");
@@ -19,9 +32,27 @@ export function OrderTracker({ id }: { id: string }) {
   const { ready, orders, cancelOrder, rateOrder } = useShop();
   const [confirming, setConfirming] = useState(false);
   const [cancelError, setCancelError] = useState(false);
-  const order = orders.find((item) => item.id === id);
+  const [remote, setRemote] = useState<TrackedOrder | null>(null);
+  const local = orders.find((item) => item.id === id);
+  const order = remote ?? local;
 
-  if (!ready) return <p className="px-4 py-8 text-sm text-muted">{t("history")}</p>;
+  useEffect(() => {
+    let alive = true;
+    async function pull() {
+      const response = await fetch(`/api/orders/${id}`);
+      if (!alive || !response.ok) return;
+      const data = (await response.json()) as { order: TrackedOrder };
+      setRemote(fromServer(data.order));
+    }
+    void pull();
+    const timer = window.setInterval(() => void pull(), 4000);
+    return () => {
+      alive = false;
+      window.clearInterval(timer);
+    };
+  }, [id]);
+
+  if (!ready && !remote) return <p className="px-4 py-8 text-sm text-muted">{t("history")}</p>;
   if (!order) {
     return (
       <div className="flex flex-col gap-3 px-4 py-8">
@@ -56,7 +87,7 @@ export function OrderTracker({ id }: { id: string }) {
               ? t("delivered")
               : t("eta", { range })}
       </p>
-      <p className="text-sm text-muted">{t("simulated")}</p>
+      <p className="text-sm text-muted">{order.persistedStatus ? t("savedNote") : t("simulated")}</p>
       {order.frozenStatus ? (
         <p className="text-sm font-medium text-danger">{t(`status.${order.status}`)}</p>
       ) : (
@@ -126,9 +157,20 @@ export function OrderTracker({ id }: { id: string }) {
                 type="button"
                 className={primaryButtonClass}
                 onClick={() => {
-                  const result = cancelOrder(order.id);
-                  if (!result.ok) setCancelError(true);
-                  setConfirming(false);
+                  void (async () => {
+                    if (order.persistedStatus) {
+                      const response = await fetch(`/api/orders/${order.id}/cancel`, { method: "POST" });
+                      if (!response.ok) setCancelError(true);
+                      else {
+                        const data = (await response.json()) as { order: TrackedOrder };
+                        setRemote(fromServer(data.order));
+                      }
+                    } else {
+                      const result = cancelOrder(order.id);
+                      if (!result.ok) setCancelError(true);
+                    }
+                    setConfirming(false);
+                  })();
                 }}
               >
                 {t("confirmYes")}
@@ -160,7 +202,21 @@ export function OrderTracker({ id }: { id: string }) {
                   type="button"
                   className="inline-flex size-11 items-center justify-center rounded-full border border-line text-lg"
                   aria-label={t("star", { count: star })}
-                  onClick={() => rateOrder(order.id, star)}
+                  onClick={() => {
+                    if (order.persistedStatus) {
+                      void fetch(`/api/orders/${order.id}/rate`, {
+                        method: "POST",
+                        headers: { "content-type": "application/json" },
+                        body: JSON.stringify({ rating: star }),
+                      }).then(async (response) => {
+                        if (!response.ok) return;
+                        const data = (await response.json()) as { order: TrackedOrder };
+                        setRemote(fromServer(data.order));
+                      });
+                      return;
+                    }
+                    rateOrder(order.id, star);
+                  }}
                 >
                   ★
                 </button>

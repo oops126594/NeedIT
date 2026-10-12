@@ -3,7 +3,8 @@ import { StarIcon } from "@/components/icons";
 import { ProductCard } from "@/components/product-card";
 import { ViewBeacon } from "@/components/view-beacon";
 import { isAppLocale } from "@/i18n/routing";
-import { getStore, productsForStore } from "@/lib/catalog";
+import { readCatalog } from "@/lib/records";
+import { stockRank } from "@/lib/catalog";
 import { formatNumber } from "@/lib/format";
 import { textOf } from "@/lib/text";
 import type { Metadata } from "next";
@@ -16,7 +17,7 @@ export async function generateMetadata({
   params: Promise<{ locale: string; id: string }>;
 }): Promise<Metadata> {
   const { locale, id } = await params;
-  const store = getStore(id);
+  const store = (await readCatalog()).stores.find((item) => item.id === id);
   if (!isAppLocale(locale) || !store) return { title: "NEEDIT" };
   return { title: store.name[locale] };
 }
@@ -29,14 +30,17 @@ export default async function StorePage({
   const { locale, id } = await params;
   if (!isAppLocale(locale)) notFound();
   setRequestLocale(locale);
-  const store = getStore(id);
+  const catalog = await readCatalog();
+  const store = catalog.stores.find((item) => item.id === id);
   if (!store) notFound();
   const t = await getTranslations("Common");
   const tStore = await getTranslations("Store");
   const categories = await getTranslations("Categories");
-  const products = productsForStore(store.id).sort((a, b) =>
-    a.name[locale].localeCompare(b.name[locale], locale),
-  );
+  const products = catalog.products
+    .filter((product) => product.storeId === store.id)
+    .sort(
+      (a, b) => stockRank(a.stock) - stockRank(b.stock) || a.name[locale].localeCompare(b.name[locale], locale),
+    );
 
   return (
     <div className="flex flex-col gap-5 px-4 py-5">

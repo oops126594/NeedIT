@@ -27,6 +27,7 @@ export function formatOrderId(sequence: number, now = new Date()): string {
 
 export function displayStatus(order: CustomerOrder, now: number): OrderStatus {
   if (order.frozenStatus) return order.frozenStatus;
+  if (order.persistedStatus) return order.persistedStatus;
   const elapsed = Math.max(0, now - order.createdAt);
   let index = 0;
   for (let step = 0; step < STEP_AT_MS.length; step += 1) {

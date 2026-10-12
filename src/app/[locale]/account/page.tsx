@@ -13,7 +13,15 @@ export async function generateMetadata({
   return { title: t("title") };
 }
 
-export default async function AccountPage({ params }: { params: Promise<{ locale: string }> }) {
+export default async function AccountPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ locale: string }>;
+  searchParams: Promise<{ next?: string | string[] }>;
+}) {
   await resolveLocale(params);
-  return <AccountPanel />;
+  const nextValue = (await searchParams).next;
+  const nextPath = typeof nextValue === "string" && nextValue.startsWith("/") && !nextValue.startsWith("//") ? nextValue : "/";
+  return <AccountPanel nextPath={nextPath} />;
 }

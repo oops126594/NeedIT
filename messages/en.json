@@ -1,7 +1,7 @@
 {
   "Meta": {
     "title": "NEEDIT",
-    "description": "Find what you need from nearby stores and get it delivered."
+    "description": "Just ask. NEEDIT finds what you need nearby."
   },
   "Common": {
     "skip": "Skip to content",
@@ -38,8 +38,8 @@
   },
   "Home": {
     "headline": "What do you need?",
-    "tagline": "Need it? Get it.",
-    "placeholder": "Try “USB-C cable”",
+    "tagline": "Just ask.",
+    "placeholder": "I need a phone charger",
     "searchLabel": "What do you need?",
     "searchSubmit": "Search",
     "searchRequired": "Tell us what you need.",
@@ -49,7 +49,17 @@
     "nearby": "Nearby stores",
     "serviceArea": "Showing stores in central Riyadh.",
     "locationLabel": "Delivery area",
-    "locationHelp": "This sets the address area for checkout. Stock on this prototype is for central Riyadh."
+    "locationHelp": "This sets the address area for checkout. Stock on this prototype is for central Riyadh.",
+    "deliveryTime": "15–20 min",
+    "bannerBody": "Nearby stores. Delivered to you.",
+    "findIt": "Find it",
+    "bestsellers": "Frequently bought",
+    "promoTechTitle": "Chargers and cables",
+    "promoTechBody": "Phone essentials from stores nearby.",
+    "promoPartyTitle": "Party, sorted",
+    "promoPartyBody": "Balloons, plates, and gift bags.",
+    "promoHomeTitle": "Home essentials",
+    "promoHomeBody": "Organizers and the small things you run out of."
   },
   "Categories": {
     "school": "School",
@@ -64,6 +74,7 @@
   "Search": {
     "title": "Search",
     "prompt": "Search nearby stores",
+    "found": "Found it.",
     "resultsFor": "Results for “{query}”",
     "resultCount": "{count, plural, one {# result} other {# results}}",
     "empty": "Nothing nearby matches that.",
@@ -137,7 +148,9 @@
       "closed": "The store is closed, so this order cannot be placed.",
       "empty": "Your cart is empty.",
       "unavailable": "An item in the cart is no longer available.",
-      "mixed": "The cart has items from more than one store."
+      "mixed": "The cart has items from more than one store.",
+      "auth": "Sign in with a customer account to place the order.",
+      "invalid": "Check the address and payment, then try again."
     }
   },
   "Order": {
@@ -159,6 +172,7 @@
     "thanks": "Thanks for the rating.",
     "support": "Report an issue",
     "simulated": "Delivery status is simulated in this prototype.",
+    "savedNote": "The store updates this order. Delivery moves forward from the admin screen.",
     "notFound": "That order is not on this device.",
     "paymentCod": "Cash on delivery",
     "paymentCard": "Card ending {last4}",
@@ -185,7 +199,10 @@
       "COURIER_ASSIGNED": "A courier is heading to the store.",
       "PICKED_UP": "The courier has the order.",
       "OUT_FOR_DELIVERY": "It is on the way to you.",
-      "DELIVERED": "It has arrived."
+      "DELIVERED": "It has arrived.",
+      "CANCELLED": "This order was cancelled.",
+      "REJECTED": "The store could not take this order.",
+      "FAILED": "This order did not go through."
     }
   },
   "Support": {
@@ -237,12 +254,53 @@
   },
   "Account": {
     "title": "Account",
-    "guest": "Shopping as a guest",
-    "guestBody": "Accounts and sign-in come with the live marketplace. This prototype keeps your cart and orders on this device.",
+    "guest": "Sign in",
+    "guestBody": "Orders are saved to your account. The cart stays on this device until you check out.",
     "language": "Language",
     "location": "Delivery area",
     "orders": "View orders",
-    "support": "Contact support"
+    "support": "Contact support",
+    "signIn": "Sign in",
+    "register": "Create account",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "phone": "Mobile number",
+    "signingIn": "Signing in…",
+    "creating": "Creating account…",
+    "invalid": "Check the email and password.",
+    "exists": "An account with that email already exists.",
+    "signedIn": "Signed in as {name}",
+    "signOut": "Sign out",
+    "merchant": "Store orders",
+    "admin": "Admin",
+    "pilot": "Pilot accounts",
+    "roleCustomer": "Customer",
+    "roleMerchant": "Merchant",
+    "roleAdmin": "Admin"
+  },
+  "Merchant": {
+    "title": "Store orders",
+    "intro": "Accept an order, prepare it, then mark it ready for pickup.",
+    "empty": "No orders for this store yet.",
+    "forbidden": "This account is not a merchant.",
+    "accept": "Accept",
+    "reject": "Reject",
+    "preparing": "Start preparing",
+    "ready": "Ready for pickup",
+    "products": "Your products",
+    "saved": "Stock updated"
+  },
+  "Admin": {
+    "title": "Marketplace",
+    "intro": "Move an order through courier assignment after the store marks it ready.",
+    "empty": "No orders yet.",
+    "forbidden": "This account is not an admin.",
+    "advance": "Advance delivery",
+    "ordersToday": "Orders today",
+    "openOrders": "Open orders",
+    "stores": "Stores",
+    "products": "Products"
   },
   "Toast": {
     "added": "Added to cart",
@@ -250,7 +308,16 @@
   },
   "Notifications": {
     "title": "Notifications",
-    "empty": "No updates yet.",
-    "markRead": "Mark as read"
+    "empty": "Order updates show up here.",
+    "enable": "Turn on order alerts",
+    "enabled": "Order alerts are on",
+    "enableHelp": "Get an alert when the store accepts your order, when it is on the way, and when it arrives.",
+    "blocked": "This browser is blocking alerts. Allow notifications for NEEDIT in the site settings.",
+    "unsupported": "This browser cannot show system alerts. Updates still appear here.",
+    "signIn": "Sign in to get order alerts on this device.",
+    "justNow": "Just now",
+    "minutesAgo": "{count} min ago",
+    "hoursAgo": "{count} h ago",
+    "open": "View order"
   }
 }

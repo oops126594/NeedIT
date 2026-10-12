@@ -5,14 +5,24 @@ import { track } from "@/lib/analytics";
 import { useShop } from "@/components/shop-provider";
 import { SearchIcon } from "@/components/icons";
 import { useTranslations } from "next-intl";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
-export function SearchForm({ initialQuery = "" }: { initialQuery?: string }) {
+export function SearchForm({
+  initialQuery = "",
+  variant = "field",
+}: {
+  initialQuery?: string;
+  variant?: "field" | "bar";
+}) {
   const t = useTranslations("Home");
   const router = useRouter();
   const { addSearch } = useShop();
   const [value, setValue] = useState(initialQuery);
   const [error, setError] = useState(false);
+
+  useEffect(() => {
+    setValue(initialQuery);
+  }, [initialQuery]);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -45,14 +55,18 @@ export function SearchForm({ initialQuery = "" }: { initialQuery?: string }) {
           enterKeyHint="search"
           aria-invalid={error}
           aria-describedby={error ? "need-search-error" : undefined}
-          className="h-14 w-full rounded-2xl border border-line bg-paper ps-4 pe-16 text-base text-ink placeholder:text-muted"
+          className={
+            variant === "bar"
+              ? "h-11 w-full rounded-xl border border-line bg-paper ps-10 pe-3 text-sm text-ink placeholder:text-muted"
+              : "h-12 w-full rounded-xl border border-line bg-paper ps-10 pe-3 text-base text-ink placeholder:text-muted"
+          }
         />
         <button
           type="submit"
           aria-label={t("searchSubmit")}
-          className="absolute end-2 top-2 flex size-10 items-center justify-center rounded-xl bg-saffron text-ink"
+          className="absolute start-3 top-1/2 -translate-y-1/2 text-muted"
         >
-          <SearchIcon className="size-5" />
+          <SearchIcon className="size-4" />
         </button>
       </div>
       {error ? (

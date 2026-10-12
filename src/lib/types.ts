@@ -97,6 +97,8 @@ export type CustomerOrder = {
   etaMaxMinutes: number;
   frozenStatus?: FrozenStatus;
   notifiedStatus: OrderStatus;
+  /** Set for orders stored on the server. Skips the prototype countdown. */
+  persistedStatus?: OrderStatus;
   rating?: number;
 };
 
@@ -106,6 +108,7 @@ export type AppNotification = {
   orderId: string;
   status: OrderStatus;
   read: boolean;
+  productId?: string;
 };
 
 export type SupportIssue =

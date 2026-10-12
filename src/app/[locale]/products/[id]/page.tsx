@@ -1,10 +1,11 @@
 import { AddToCart } from "@/components/add-to-cart";
 import { BackButton } from "@/components/back-button";
-import { CategoryMark, StarIcon } from "@/components/icons";
+import { StarIcon } from "@/components/icons";
+import { photoCredit, productImage } from "@/lib/photos";
 import { ViewBeacon } from "@/components/view-beacon";
 import { Link } from "@/i18n/navigation";
 import { isAppLocale } from "@/i18n/routing";
-import { getProduct, getStore } from "@/lib/catalog";
+import { readCatalog } from "@/lib/records";
 import { formatNumber, freshness } from "@/lib/format";
 import { formatSar } from "@/lib/money";
 import { textOf } from "@/lib/text";
@@ -18,7 +19,8 @@ export async function generateMetadata({
   params: Promise<{ locale: string; id: string }>;
 }): Promise<Metadata> {
   const { locale, id } = await params;
-  const product = getProduct(id);
+  const catalog = await readCatalog();
+  const product = catalog.products.find((item) => item.id === id);
   if (!isAppLocale(locale) || !product) return { title: "NEEDIT" };
   return { title: product.name[locale] };
 }
@@ -31,8 +33,9 @@ export default async function ProductPage({
   const { locale, id } = await params;
   if (!isAppLocale(locale)) notFound();
   setRequestLocale(locale);
-  const product = getProduct(id);
-  const store = product ? getStore(product.storeId) : undefined;
+  const catalog = await readCatalog();
+  const product = catalog.products.find((item) => item.id === id);
+  const store = product ? catalog.stores.find((item) => item.id === product.storeId) : undefined;
   if (!product || !store) notFound();
 
   const t = await getTranslations("Common");
@@ -43,7 +46,16 @@ export default async function ProductPage({
     <div className="flex flex-col gap-5 px-4 py-5">
       <ViewBeacon event="product_viewed" id={product.id} />
       <BackButton />
-      <CategoryMark id={product.categoryId} className="h-40 w-full rounded-3xl" iconClassName="size-16" />
+      <div className="overflow-hidden rounded-2xl bg-white">
+        <img
+          src={productImage(product.id)}
+          alt={textOf(product.name, locale)}
+          className="aspect-square w-full object-contain p-6"
+        />
+      </div>
+      {photoCredit(product.id, locale) ? (
+        <p className="-mt-3 text-xs text-muted">{photoCredit(product.id, locale)}</p>
+      ) : null}
       <div>
         <p className="text-sm text-muted">{textOf(product.brand, locale)}</p>
         <h1 className="text-2xl font-semibold">{textOf(product.name, locale)}</h1>

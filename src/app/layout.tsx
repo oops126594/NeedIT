@@ -12,7 +12,11 @@ const plex = IBM_Plex_Sans_Arabic({
 
 export const metadata: Metadata = {
   title: "NEEDIT",
-  description: "Find what you need from nearby stores and get it delivered.",
+  description: "Just ask. NEEDIT finds what you need nearby.",
+  icons: {
+    icon: [{ url: "/logo.png", type: "image/png" }],
+    apple: [{ url: "/logo.png", type: "image/png" }],
+  },
 };
 
 export const viewport: Viewport = {

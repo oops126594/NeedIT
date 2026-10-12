@@ -3,7 +3,7 @@
 import { track } from "@/lib/analytics";
 import { getProduct, getStore } from "@/lib/catalog";
 import { getLocation, type LocationId } from "@/lib/locations";
-import { MAX_QUANTITY, displayStatus, formatOrderId, storesInCart, summarizeCart } from "@/lib/orders";
+import { MAX_QUANTITY, displayStatus, storesInCart, summarizeCart } from "@/lib/orders";
 import { emptyShop, loadShop, saveShop, type PersistedShop } from "@/lib/storage";
 import type {
   AppNotification,
@@ -29,7 +29,7 @@ type AddResult = { ok: true } | AddFailure;
 
 type PlaceResult =
   | { ok: true; orderId: string }
-  | { ok: false; reason: "empty" | "closed" | "unavailable" | "mixed" };
+  | { ok: false; reason: "empty" | "closed" | "unavailable" | "mixed" | "auth" | "invalid" };
 
 type ShopContextValue = {
   ready: boolean;
@@ -49,7 +49,7 @@ type ShopContextValue = {
     address: DeliveryAddress;
     paymentMethod: PaymentMethod;
     cardLast4?: string;
-  }) => PlaceResult;
+  }) => Promise<PlaceResult>;
   cancelOrder: (id: string) => { ok: true } | { ok: false; reason: "not-found" | "too-late" };
   rateOrder: (id: string, rating: number) => void;
   markNotificationsRead: () => void;
@@ -223,7 +223,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
               ),
       }));
     },
-    placeOrder: ({ address, paymentMethod, cardLast4 }) => {
+    placeOrder: async ({ address, paymentMethod, cardLast4 }) => {
       const current = shopRef.current;
       const cartSummary = summarizeCart(current.cart);
       const storeIds = storesInCart(current.cart);
@@ -234,51 +234,54 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         return { ok: false, reason: "unavailable" };
       }
 
-      let sequence = current.orderSeq + 1;
-      let id = formatOrderId(sequence);
-      while (current.orders.some((order) => order.id === id)) {
-        sequence += 1;
-        id = formatOrderId(sequence);
+      const response = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          lines: cartSummary.detailed.map((item) => ({
+            productId: item.product.id,
+            quantity: item.line.quantity,
+          })),
+          address,
+          paymentMethod,
+          cardLast4,
+        }),
+      });
+      const data = (await response.json().catch(() => null)) as {
+        error?: PlaceResult extends { ok: false; reason: infer Reason } ? Reason : never;
+        order?: CustomerOrder & { status: OrderStatus };
+      } | null;
+      if (response.status === 401) return { ok: false, reason: "auth" };
+      if (!response.ok || !data?.order) {
+        const reason = data?.error;
+        if (reason === "empty" || reason === "closed" || reason === "unavailable" || reason === "mixed" || reason === "invalid") {
+          return { ok: false, reason };
+        }
+        return { ok: false, reason: "unavailable" };
       }
-      const createdAt = Date.now();
+
+      const saved = data.order;
       const order: CustomerOrder = {
-        id,
-        createdAt,
-        storeId: cartSummary.store.id,
-        storeName: cartSummary.store.name,
-        lines: cartSummary.detailed.map((item) => ({
-          productId: item.product.id,
-          name: item.product.name,
-          quantity: item.line.quantity,
-          priceHalalas: item.product.priceHalalas,
-        })),
-        subtotalHalalas: cartSummary.subtotal,
-        deliveryFeeHalalas: cartSummary.delivery,
-        totalHalalas: cartSummary.total,
-        address,
-        paymentMethod,
-        cardLast4: paymentMethod === "CARD" ? cardLast4 : undefined,
-        etaMinMinutes: cartSummary.store.deliveryMinMinutes,
-        etaMaxMinutes: cartSummary.store.deliveryMaxMinutes,
-        notifiedStatus: "PLACED",
+        ...saved,
+        notifiedStatus: saved.status,
+        persistedStatus: saved.status,
       };
       const note: AppNotification = {
-        id: `${id}:PLACED`,
-        createdAt,
-        orderId: id,
+        id: `${order.id}:PLACED`,
+        createdAt: order.createdAt,
+        orderId: order.id,
         status: "PLACED",
         read: false,
       };
       setShop((prev) => ({
         ...prev,
         cart: [],
-        orderSeq: sequence,
-        orders: [order, ...prev.orders],
         savedAddress: address,
+        orders: [order, ...prev.orders.filter((item) => item.id !== order.id)],
         notifications: [note, ...prev.notifications.filter((item) => item.id !== note.id)].slice(0, 40),
       }));
-      track("order_created", { id });
-      return { ok: true, orderId: id };
+      track("order_created", { id: order.id });
+      return { ok: true, orderId: order.id };
     },
     cancelOrder: (id) => {
       const current = shopRef.current.orders.find((order) => order.id === id);
