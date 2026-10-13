@@ -116,7 +116,13 @@ export function OrderTracker({ id }: { id: string }) {
         </ol>
       )}
       <section className="flex flex-col gap-2">
-        <h2 className="text-sm font-semibold">{t("items")}</h2>
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold">{t("bill")}</h2>
+          <button type="button" className="text-sm font-semibold text-accent-text" onClick={() => window.print()}>
+            {t("printBill")}
+          </button>
+        </div>
+        {order.persistedStatus ? <p className="text-sm text-muted">{t("emailedBill")}</p> : null}
         <ul className="flex flex-col gap-2 text-sm">
           {order.lines.map((line) => (
             <li key={line.productId} className="flex justify-between gap-3">

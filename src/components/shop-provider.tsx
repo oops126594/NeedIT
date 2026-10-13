@@ -93,10 +93,44 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const [saveCart, setSaveCart] = useState(false);
+
   useEffect(() => {
     if (!ready) return;
     saveShop(shop);
   }, [shop, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    let alive = true;
+    void fetch("/api/cart").then(async (response) => {
+      if (!alive) return;
+      if (!response.ok) {
+        setSaveCart(false);
+        return;
+      }
+      const data = (await response.json()) as { cart: { lines: PersistedShop["cart"] } | null };
+      if (data.cart?.lines?.length) {
+        setShop((prev) => (prev.cart.length > 0 ? prev : { ...prev, cart: data.cart?.lines ?? prev.cart }));
+      }
+      setSaveCart(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [ready]);
+
+  useEffect(() => {
+    if (!ready || !saveCart) return;
+    const timer = window.setTimeout(() => {
+      void fetch("/api/cart", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ lines: shop.cart }),
+      });
+    }, 700);
+    return () => window.clearTimeout(timer);
+  }, [ready, saveCart, shop.cart]);
 
   useEffect(() => {
     if (!toast) return;

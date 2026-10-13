@@ -105,10 +105,14 @@ export type CustomerOrder = {
 export type AppNotification = {
   id: string;
   createdAt: number;
-  orderId: string;
-  status: OrderStatus;
   read: boolean;
+  kind?: "order" | "promo" | "cart" | "bill";
+  orderId?: string;
+  status?: OrderStatus;
   productId?: string;
+  title?: LocalizedText;
+  body?: LocalizedText;
+  href?: string;
 };
 
 export type SupportIssue =

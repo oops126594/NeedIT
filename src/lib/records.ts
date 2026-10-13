@@ -12,7 +12,7 @@ import type {
   Store,
 } from "@/lib/types";
 import bcrypt from "bcryptjs";
-import { randomUUID } from "crypto";
+import { createHash, randomBytes, randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { MongoClient, type Db } from "mongodb";
 import path from "path";
@@ -42,11 +42,37 @@ export type PublicUser = {
 export type SavedNotification = {
   id: string;
   userId: string;
-  orderId: string;
+  orderId?: string;
   productId?: string;
-  status: OrderStatus;
+  status?: OrderStatus;
+  kind?: "order" | "promo" | "cart" | "bill";
+  title?: { ar: string; en: string };
+  body?: { ar: string; en: string };
+  href?: string;
   read: boolean;
   createdAt: number;
+};
+
+export type PasswordResetRecord = {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: number;
+  createdAt: number;
+};
+
+export type SavedCart = {
+  userId: string;
+  lines: { productId: string; quantity: number }[];
+  updatedAt: number;
+  remindedAt?: number;
+};
+
+export type PromoSend = {
+  id: string;
+  userId: string;
+  slotId: string;
+  date: string;
 };
 
 export type PushSubscriptionRecord = {
@@ -87,14 +113,20 @@ type FileShape = {
   orderSeq: number;
   notifications: SavedNotification[];
   pushSubscriptions: PushSubscriptionRecord[];
+  passwordResets: PasswordResetRecord[];
+  carts: SavedCart[];
+  promoSends: PromoSend[];
 };
 
 const FILE_PATH = path.join(process.cwd(), "data", "needit.json");
+
+const CONNECT_GENERATION = 2;
 
 const globalStore = globalThis as unknown as {
   mongo?: Db;
   mode?: "mongo" | "file";
   fileQueue?: Promise<unknown>;
+  generation?: number;
 };
 
 function publicUser(user: UserRecord): PublicUser {
@@ -117,6 +149,9 @@ function emptyFile(): FileShape {
     orderSeq: 122,
     notifications: [],
     pushSubscriptions: [],
+    passwordResets: [],
+    carts: [],
+    promoSends: [],
   };
 }
 
@@ -125,6 +160,23 @@ function scheduleAlert(order: SavedOrder) {
     .then((mod) => mod.publishOrderAlert(order))
     .catch((error: unknown) => {
       console.error("order alert failed", error instanceof Error ? error.message : "unknown");
+    });
+}
+
+function scheduleReceipt(order: SavedOrder) {
+  void clearUserCart(order.customerId);
+  void import("@/lib/customer-mail")
+    .then((mod) => mod.sendOrderBill(order))
+    .catch((error: unknown) => {
+      console.error("order bill failed", error instanceof Error ? error.message : "unknown");
+    });
+}
+
+function ensureJobs() {
+  void import("@/lib/jobs")
+    .then((mod) => mod.startBackgroundJobs())
+    .catch((error: unknown) => {
+      console.error("background jobs failed", error instanceof Error ? error.message : "unknown");
     });
 }
 
@@ -163,8 +215,34 @@ function withFile<T>(work: (data: FileShape) => Promise<T> | T): Promise<T> {
   return run;
 }
 
+function mongoUri(raw: string): string {
+  const trimmed = raw.trim();
+  const schemeIndex = trimmed.indexOf("://");
+  if (schemeIndex === -1) return trimmed;
+  const scheme = trimmed.slice(0, schemeIndex + 3);
+  const rest = trimmed.slice(scheme.length);
+  const at = rest.lastIndexOf("@");
+  if (at === -1) return trimmed;
+  const auth = rest.slice(0, at);
+  let hostAndPath = rest.slice(at + 1);
+  const colon = auth.indexOf(":");
+  if (colon === -1) return trimmed;
+  let user = auth.slice(0, colon);
+  let pass = auth.slice(colon + 1);
+  try {
+    user = decodeURIComponent(user);
+    pass = decodeURIComponent(pass);
+  } catch {
+    // Keep the raw user and password when they are not percent-encoded.
+  }
+  if (!hostAndPath.includes("/")) hostAndPath += "/needit";
+  else if (hostAndPath.endsWith("/")) hostAndPath += "needit";
+  return `${scheme}${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${hostAndPath}`;
+}
+
 function mongoHost(uri: string): string | null {
-  const match = uri.match(/@([^/?]+)/);
+  const encoded = mongoUri(uri);
+  const match = encoded.match(/@([^/?]+)/);
   return match?.[1]?.split(":")[0] ?? null;
 }
 
@@ -186,27 +264,41 @@ async function connectMongo(): Promise<Db | null> {
     return null;
   }
   try {
-    const client = new MongoClient(uri, { serverSelectionTimeoutMS: 4000 });
+    const client = new MongoClient(mongoUri(uri), { serverSelectionTimeoutMS: 12000 });
     await client.connect();
     return client.db("needit");
-  } catch {
-    console.warn("MongoDB did not respond. Using the local database in data/needit.json.");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown error";
+    console.warn(`MongoDB did not respond (${message}). Using the local database in data/needit.json.`);
     return null;
   }
 }
 
 async function mode(): Promise<"mongo" | "file"> {
-  if (globalStore.mode === "mongo" && globalStore.mongo) return "mongo";
-  if (globalStore.mode === "file") return "file";
+  if (globalStore.generation !== CONNECT_GENERATION) {
+    globalStore.mongo = undefined;
+    globalStore.mode = undefined;
+    globalStore.generation = CONNECT_GENERATION;
+  }
+  if (globalStore.mode === "mongo" && globalStore.mongo) {
+    ensureJobs();
+    return "mongo";
+  }
+  if (globalStore.mode === "file") {
+    ensureJobs();
+    return "file";
+  }
   const db = await connectMongo();
   if (db) {
     globalStore.mongo = db;
     globalStore.mode = "mongo";
     await seedMongo(db);
+    ensureJobs();
     return "mongo";
   }
   globalStore.mode = "file";
   await seedFile();
+  ensureJobs();
   return "file";
 }
 
@@ -238,15 +330,43 @@ async function seedFile(): Promise<void> {
   });
 }
 
+async function importFileDatabase(db: Db): Promise<boolean> {
+  let parsed: Partial<FileShape>;
+  try {
+    parsed = JSON.parse(await readFile(FILE_PATH, "utf8")) as Partial<FileShape>;
+  } catch {
+    return false;
+  }
+  if (!parsed.stores?.length) return false;
+  const copy = async (name: string, docs: unknown[] | undefined) => {
+    if (!docs?.length) return;
+    if ((await db.collection(name).countDocuments()) > 0) return;
+    await db.collection(name).insertMany(docs as never[]);
+  };
+  await copy("stores", parsed.stores);
+  await copy("products", parsed.products);
+  await copy("users", parsed.users);
+  await copy("orders", parsed.orders);
+  await copy("notifications", parsed.notifications);
+  await copy("pushSubscriptions", parsed.pushSubscriptions);
+  if (typeof parsed.orderSeq === "number" && !(await db.collection("counters").findOne({ name: "order" }))) {
+    await db.collection("counters").insertOne({ name: "order", seq: parsed.orderSeq });
+  }
+  return true;
+}
+
 async function seedMongo(db: Db): Promise<void> {
   const stores = db.collection<Store>("stores");
-  if ((await stores.countDocuments()) === 0) {
-    await stores.insertMany(STORES);
-    await db.collection<Product>("products").insertMany(PRODUCTS);
-  }
   const users = db.collection<UserRecord>("users");
   await users.createIndex({ email: 1 }, { unique: true });
   await db.collection("orders").createIndex({ id: 1 }, { unique: true });
+  if ((await stores.countDocuments()) === 0) {
+    const imported = await importFileDatabase(db);
+    if (!imported) {
+      await stores.insertMany(STORES);
+      await db.collection<Product>("products").insertMany(PRODUCTS);
+    }
+  }
   await ensurePilotUsers([], async (user) => {
     const existing = await users.findOne({ email: user.email });
     if (!existing) await users.insertOne(user);
@@ -439,6 +559,7 @@ export async function createSavedOrder(input: {
     const order = build(counter?.seq ?? 123);
     await globalStore.mongo.collection<SavedOrder>("orders").insertOne(order);
     scheduleAlert(order);
+    scheduleReceipt(order);
     return { ok: true, order };
   }
 
@@ -449,6 +570,7 @@ export async function createSavedOrder(input: {
     return saved;
   });
   scheduleAlert(order);
+  scheduleReceipt(order);
   return { ok: true, order };
 }
 
@@ -638,6 +760,169 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
   }
   await withFile(async (data) => {
     data.pushSubscriptions = (data.pushSubscriptions ?? []).filter((item) => item.endpoint !== endpoint);
+  });
+}
+
+function tokenHash(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+export async function createPasswordReset(email: string): Promise<{ token: string; name: string } | null> {
+  const user = await findUserRecord(email.toLowerCase());
+  if (!user) return null;
+  const token = randomBytes(32).toString("hex");
+  const record: PasswordResetRecord = {
+    id: randomUUID(),
+    userId: user.id,
+    tokenHash: tokenHash(token),
+    expiresAt: Date.now() + 30 * 60 * 1000,
+    createdAt: Date.now(),
+  };
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const resets = globalStore.mongo.collection<PasswordResetRecord>("passwordResets");
+    await resets.deleteMany({ userId: user.id });
+    await resets.insertOne(record);
+    return { token, name: user.name };
+  }
+  await withFile(async (data) => {
+    data.passwordResets = (data.passwordResets ?? []).filter((item) => item.userId !== user.id);
+    data.passwordResets.unshift(record);
+  });
+  return { token, name: user.name };
+}
+
+export async function resetPasswordWithToken(token: string, password: string): Promise<boolean> {
+  const hash = tokenHash(token);
+  const now = Date.now();
+  const nextHash = await hashPassword(password);
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const resets = globalStore.mongo.collection<PasswordResetRecord>("passwordResets");
+    const record = await resets.findOne({ tokenHash: hash });
+    if (!record || record.expiresAt < now) return false;
+    await globalStore.mongo.collection<UserRecord>("users").updateOne({ id: record.userId }, { $set: { passwordHash: nextHash } });
+    await resets.deleteMany({ userId: record.userId });
+    return true;
+  }
+  return withFile(async (data) => {
+    const record = (data.passwordResets ?? []).find((item) => item.tokenHash === hash);
+    if (!record || record.expiresAt < now) return false;
+    const user = data.users.find((item) => item.id === record.userId);
+    if (!user) return false;
+    user.passwordHash = nextHash;
+    data.passwordResets = data.passwordResets.filter((item) => item.userId !== record.userId);
+    return true;
+  });
+}
+
+export async function saveUserCart(userId: string, lines: SavedCart["lines"]): Promise<void> {
+  const cleaned = lines.filter((line) => line.quantity > 0).slice(0, 20);
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const carts = globalStore.mongo.collection<SavedCart>("carts");
+    if (cleaned.length === 0) {
+      await carts.deleteOne({ userId });
+      return;
+    }
+    const current = await carts.findOne({ userId });
+    const same = current && JSON.stringify(current.lines) === JSON.stringify(cleaned);
+    if (same) return;
+    await carts.updateOne(
+      { userId },
+      { $set: { userId, lines: cleaned, updatedAt: Date.now() }, $unset: { remindedAt: "" } },
+      { upsert: true },
+    );
+    return;
+  }
+  await withFile(async (data) => {
+    data.carts = data.carts ?? [];
+    if (cleaned.length === 0) {
+      data.carts = data.carts.filter((cart) => cart.userId !== userId);
+      return;
+    }
+    const current = data.carts.find((cart) => cart.userId === userId);
+    const same = current && JSON.stringify(current.lines) === JSON.stringify(cleaned);
+    const next: SavedCart = {
+      userId,
+      lines: cleaned,
+      updatedAt: same ? current.updatedAt : Date.now(),
+      remindedAt: same ? current.remindedAt : undefined,
+    };
+    data.carts = [next, ...data.carts.filter((cart) => cart.userId !== userId)];
+  });
+}
+
+export async function getUserCart(userId: string): Promise<SavedCart | null> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const cart = await globalStore.mongo.collection<SavedCart>("carts").findOne({ userId });
+    return cart ? stripId(cart) : null;
+  }
+  return withFile(async (data) => data.carts?.find((cart) => cart.userId === userId) ?? null);
+}
+
+export async function clearUserCart(userId: string): Promise<void> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    await globalStore.mongo.collection("carts").deleteOne({ userId });
+    return;
+  }
+  await withFile(async (data) => {
+    data.carts = (data.carts ?? []).filter((cart) => cart.userId !== userId);
+  });
+}
+
+export async function cartsReadyForReminder(olderThan: number): Promise<SavedCart[]> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const docs = await globalStore.mongo
+      .collection<SavedCart>("carts")
+      .find({ updatedAt: { $lt: olderThan } })
+      .toArray();
+    return docs
+      .map((doc) => stripId(doc))
+      .filter((cart) => cart.lines.length > 0 && (!cart.remindedAt || cart.remindedAt < cart.updatedAt));
+  }
+  return withFile(async (data) =>
+    (data.carts ?? []).filter(
+      (cart) => cart.lines.length > 0 && cart.updatedAt < olderThan && (!cart.remindedAt || cart.remindedAt < cart.updatedAt),
+    ),
+  );
+}
+
+export async function markCartReminded(userId: string): Promise<void> {
+  const remindedAt = Date.now();
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    await globalStore.mongo.collection("carts").updateOne({ userId }, { $set: { remindedAt } });
+    return;
+  }
+  await withFile(async (data) => {
+    const cart = data.carts?.find((item) => item.userId === userId);
+    if (cart) cart.remindedAt = remindedAt;
+  });
+}
+
+export async function listCustomers(): Promise<Array<{ id: string; email: string; name: string }>> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const docs = await globalStore.mongo.collection<UserRecord>("users").find({ role: "CUSTOMER" }).toArray();
+    return docs.map((user) => ({ id: user.id, email: user.email, name: user.name }));
+  }
+  return withFile(async (data) =>
+    data.users.filter((user) => user.role === "CUSTOMER").map((user) => ({ id: user.id, email: user.email, name: user.name })),
+  );
+}
+
+export async function promoWasSent(id: string): Promise<boolean> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const found = await globalStore.mongo.collection<PromoSend>("promoSends").findOne({ id });
+    return Boolean(found);
+  }
+  return withFile(async (data) => (data.promoSends ?? []).some((item) => item.id === id));
+}
+
+export async function markPromoSent(record: PromoSend): Promise<void> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    await globalStore.mongo.collection<PromoSend>("promoSends").updateOne({ id: record.id }, { $setOnInsert: record }, { upsert: true });
+    return;
+  }
+  await withFile(async (data) => {
+    data.promoSends = data.promoSends ?? [];
+    if (!data.promoSends.some((item) => item.id === record.id)) data.promoSends.push(record);
   });
 }
 

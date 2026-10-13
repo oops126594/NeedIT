@@ -260,14 +260,14 @@ export function AppShell({ children }: { children: ReactNode }) {
       </nav>
       {alerts.banner ? (
         <Link
-          href={`/orders/${alerts.banner.orderId}`}
+          href={noteHref(alerts.banner)}
           onClick={alerts.dismiss}
           className="fixed inset-x-4 top-20 z-40 mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-line bg-white p-3 shadow-lg"
         >
           <img src="/mark.png" alt="" className="size-11 shrink-0" />
           <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold">{tOrder(`status.${alerts.banner.status}`)}</span>
-            <span className="mt-0.5 block text-sm text-muted">{tOrder(`detail.${alerts.banner.status}`)}</span>
+            <span className="block text-sm font-semibold">{noteTitle(alerts.banner, locale, tOrder)}</span>
+            <span className="mt-0.5 block text-sm text-muted">{noteBody(alerts.banner, locale, tOrder)}</span>
           </span>
         </Link>
       ) : null}
@@ -296,13 +296,37 @@ function ageLabel(
   return formatTime(createdAt, locale);
 }
 
+function noteHref(note: AppNotification): string {
+  if (note.href) return note.href;
+  return note.orderId ? `/orders/${note.orderId}` : "/";
+}
+
+function noteTitle(
+  note: AppNotification,
+  locale: AppLocale,
+  tOrder: ReturnType<typeof useTranslations<"Order">>,
+): string {
+  if (note.title) return textOf(note.title, locale);
+  return note.status ? tOrder(`status.${note.status}`) : "NEEDIT";
+}
+
+function noteBody(
+  note: AppNotification,
+  locale: AppLocale,
+  tOrder: ReturnType<typeof useTranslations<"Order">>,
+): string {
+  if (note.body) return textOf(note.body, locale);
+  if (note.orderId && note.status) return `${note.orderId} · ${tOrder(`detail.${note.status}`)}`;
+  return note.orderId ?? "";
+}
+
 function NotificationRow({ note }: { note: AppNotification }) {
   const tOrder = useTranslations("Order");
   const tNotes = useTranslations("Notifications");
   const locale = useAppLocale();
 
   return (
-    <Link href={`/orders/${note.orderId}`} className="flex items-center gap-3 rounded-xl bg-paper px-3 py-2">
+    <Link href={noteHref(note)} className="flex items-center gap-3 rounded-xl bg-paper px-3 py-2">
       <img
         src={note.productId ? productImage(note.productId) : "/mark.png"}
         alt=""
@@ -310,14 +334,10 @@ function NotificationRow({ note }: { note: AppNotification }) {
       />
       <span className="min-w-0 flex-1">
         <span className="flex items-baseline justify-between gap-2">
-          <span className="truncate text-sm font-semibold">{tOrder(`status.${note.status}`)}</span>
+          <span className="truncate text-sm font-semibold">{noteTitle(note, locale, tOrder)}</span>
           <span className="shrink-0 text-xs text-muted">{ageLabel(note.createdAt, locale, tNotes)}</span>
         </span>
-        <span className="mt-0.5 block truncate text-sm text-muted">
-          {note.orderId}
-          <span aria-hidden="true"> · </span>
-          {tOrder(`detail.${note.status}`)}
-        </span>
+        <span className="mt-0.5 block truncate text-sm text-muted">{noteBody(note, locale, tOrder)}</span>
       </span>
     </Link>
   );

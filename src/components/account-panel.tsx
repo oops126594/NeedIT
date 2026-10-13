@@ -5,6 +5,7 @@ import { PILOT_ADMIN, PILOT_MERCHANT } from "@/lib/pilot-accounts";
 import { isSaudiMobile } from "@/lib/validate";
 import { LanguageChoices, LocationChoices } from "@/components/app-shell";
 import { fieldClass, primaryButtonClass, secondaryButtonClass } from "@/components/styles";
+import { useAppLocale } from "@/components/use-app-locale";
 import { useTranslations } from "next-intl";
 import { useEffect, useState, type FormEvent } from "react";
 
@@ -18,6 +19,7 @@ type SessionUser = {
 
 export function AccountPanel({ nextPath }: { nextPath: string }) {
   const t = useTranslations("Account");
+  const locale = useAppLocale();
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [ready, setReady] = useState(false);
@@ -28,6 +30,8 @@ export function AccountPanel({ nextPath }: { nextPath: string }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
+  const [resetNote, setResetNote] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -76,6 +80,26 @@ export function AccountPanel({ nextPath }: { nextPath: string }) {
     setUser(data.user);
     router.push(nextPath);
     router.refresh();
+  }
+
+  async function sendReset() {
+    setResetNote(null);
+    setResetting(true);
+    const response = await fetch("/api/auth/forgot", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, locale }),
+    });
+    setResetting(false);
+    if (response.status === 503) {
+      setResetNote(t("mailUnavailable"));
+      return;
+    }
+    if (!response.ok) {
+      setResetNote(t("invalid"));
+      return;
+    }
+    setResetNote(t("resetSent"));
   }
 
   async function signOut() {
@@ -152,6 +176,12 @@ export function AccountPanel({ nextPath }: { nextPath: string }) {
               <input className={fieldClass} type="password" autoComplete={mode === "login" ? "current-password" : "new-password"} value={password} onChange={(event) => setPassword(event.target.value)} />
             </label>
             {error ? <p className="text-sm text-danger">{error}</p> : null}
+            {mode === "login" ? (
+              <button type="button" className="self-start text-sm font-semibold text-accent-text" onClick={() => void sendReset()} disabled={resetting}>
+                {t("forgot")}
+              </button>
+            ) : null}
+            {resetNote ? <p className="text-sm text-muted">{resetNote}</p> : null}
             <button type="submit" className={primaryButtonClass} disabled={pending}>
               {pending ? (mode === "login" ? t("signingIn") : t("creating")) : mode === "login" ? t("signIn") : t("register")}
             </button>
