@@ -2,7 +2,8 @@
 
 import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import { formatTime } from "@/lib/format";
-import { getLocation, SERVICE_LOCATIONS, type LocationId } from "@/lib/locations";
+import { getLocation, type LocationId } from "@/lib/locations";
+import { MapPicker } from "@/components/map-picker";
 import { productImage } from "@/lib/photos";
 import { textOf } from "@/lib/text";
 import type { AppNotification } from "@/lib/types";
@@ -77,27 +78,22 @@ export function LanguageChoices() {
   );
 }
 
-export function LocationChoices() {
-  const locale = useAppLocale();
+export function LocationChoices({ onChosen }: { onChosen?: () => void }) {
   const t = useTranslations("Home");
-  const { locationId, setLocation } = useShop();
+  const { locationId, place, setPlace } = useShop();
+  const preset = getLocation(locationId);
+  const initial = place ?? { lat: preset.lat, lng: preset.lng };
 
   return (
     <div className="flex flex-col gap-2">
       <p className="text-sm text-muted">{t("locationHelp")}</p>
-      {SERVICE_LOCATIONS.map((location) => (
-        <button
-          key={location.id}
-          type="button"
-          aria-pressed={location.id === locationId}
-          onClick={() => setLocation(location.id)}
-          className={`min-h-12 rounded-2xl border px-4 text-start text-sm font-semibold ${
-            location.id === locationId ? "border-accent bg-accent-soft text-accent-text" : "border-line"
-          }`}
-        >
-          {textOf(location.name, locale)}
-        </button>
-      ))}
+      <MapPicker
+        initial={initial}
+        onChoose={(next) => {
+          setPlace(next);
+          onChosen?.();
+        }}
+      />
     </div>
   );
 }
@@ -116,7 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     document.documentElement.lang = locale;
     document.documentElement.dir = locale === "ar" ? "rtl" : "ltr";
   }, [locale]);
-  const { cartCount, locationId, toast, shop, ready, markNotificationsRead } = useShop();
+  const { cartCount, locationId, place, toast, shop, ready, markNotificationsRead } = useShop();
   const alerts = useOrderAlerts(shop.notifications, locale);
   const [panel, setPanel] = useState<"location" | "notifications" | null>(null);
   const location = getLocation(locationId);
@@ -163,7 +159,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span className="block text-sm font-bold leading-tight">{tHome("deliveryTime")}</span>
             <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
               <PinIcon className="size-3.5 shrink-0" />
-              <span className="truncate">{textOf(location.name, locale)}</span>
+              <span className="truncate">{place?.label ?? textOf(location.name, locale)}</span>
             </span>
           </button>
           <div className="order-last w-full shrink-0 md:order-none md:w-auto md:min-w-0 md:flex-1">
@@ -207,9 +203,11 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         </div>
         {panel === "location" ? (
-          <div className="mt-2 rounded-2xl border border-line bg-card p-3 shadow-lg">
-            <p className="mb-2 text-sm font-semibold">{tHome("locationLabel")}</p>
-            <LocationChoices />
+          <div className="max-h-[70vh] overflow-y-auto border-t border-line bg-white px-4 py-3">
+            <div className="mx-auto w-full max-w-3xl">
+              <p className="mb-2 text-sm font-semibold">{tHome("locationLabel")}</p>
+              <LocationChoices onChosen={() => setPanel(null)} />
+            </div>
           </div>
         ) : null}
         {panel === "notifications" ? (

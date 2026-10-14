@@ -2,7 +2,7 @@
 
 import { track } from "@/lib/analytics";
 import { getProduct, getStore } from "@/lib/catalog";
-import { getLocation, type LocationId } from "@/lib/locations";
+import { getLocation, type LocationId, type MapPlace } from "@/lib/locations";
 import { MAX_QUANTITY, displayStatus, storesInCart, summarizeCart } from "@/lib/orders";
 import { emptyShop, loadShop, saveShop, type PersistedShop } from "@/lib/storage";
 import type {
@@ -39,9 +39,11 @@ type ShopContextValue = {
   orders: (CustomerOrder & { status: OrderStatus })[];
   unreadCount: number;
   locationId: LocationId;
+  place: MapPlace | null;
   toast: "added" | "replaced" | null;
   addSearch: (query: string) => void;
   setLocation: (id: LocationId) => void;
+  setPlace: (place: MapPlace) => void;
   addToCart: (productId: string, quantity: number) => AddResult;
   replaceCart: (productId: string, quantity: number) => AddResult;
   setQuantity: (productId: string, quantity: number) => void;
@@ -221,6 +223,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     orders,
     unreadCount,
     locationId: shop.locationId,
+    place: shop.place,
     toast,
     addSearch: (query) => {
       const trimmed = query.trim();
@@ -228,6 +231,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       setShop((prev) => ({ ...prev, recentSearches: rememberSearch(prev.recentSearches, trimmed) }));
     },
     setLocation: (id) => setShop((prev) => ({ ...prev, locationId: id })),
+    setPlace: (place) => setShop((prev) => ({ ...prev, place })),
     addToCart: (productId, quantity) => {
       const result = guardAdd(productId, quantity, false);
       if (!result.ok) return result;

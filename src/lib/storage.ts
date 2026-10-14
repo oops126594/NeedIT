@@ -1,4 +1,4 @@
-import { isLocationId, type LocationId } from "@/lib/locations";
+import { isLocationId, type LocationId, type MapPlace } from "@/lib/locations";
 import type {
   AppNotification,
   CartLine,
@@ -18,6 +18,7 @@ export type PersistedShop = {
   notifications: AppNotification[];
   tickets: SupportTicket[];
   locationId: LocationId;
+  place: MapPlace | null;
   savedAddress: DeliveryAddress | null;
 };
 
@@ -30,8 +31,18 @@ export function emptyShop(): PersistedShop {
     notifications: [],
     tickets: [],
     locationId: "olaya",
+    place: null,
     savedAddress: null,
   };
+}
+
+function readPlace(value: unknown): MapPlace | null {
+  if (!isRecord(value)) return null;
+  const lat = Number(value.lat);
+  const lng = Number(value.lng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (typeof value.label !== "string" || typeof value.district !== "string") return null;
+  return { lat, lng, label: value.label, district: value.district };
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -78,6 +89,7 @@ export function loadShop(): PersistedShop {
       locationId: typeof parsed.locationId === "string" && isLocationId(parsed.locationId)
         ? parsed.locationId
         : "olaya",
+      place: readPlace(parsed.place),
       savedAddress: isRecord(parsed.savedAddress) ? (parsed.savedAddress as DeliveryAddress) : null,
     };
   } catch {

@@ -44,11 +44,11 @@ export function CheckoutForm() {
     const area = getLocation(locationId).district;
     setRecipient(saved?.recipient ?? "");
     setPhone(saved?.phone ?? "");
-    setDistrict(saved?.district || textOf(area, locale));
-    setLine(saved?.line ?? "");
+    setDistrict(shop.place?.district || saved?.district || textOf(area, locale));
+    setLine(shop.place?.label || saved?.line || "");
     setInstructions(saved?.instructions ?? "");
     setHydrated(true);
-  }, [ready, hydrated, shop.savedAddress, locationId, locale]);
+  }, [ready, hydrated, shop.savedAddress, shop.place, locationId, locale]);
 
   useEffect(() => {
     if (!ready || leaving.current || summary.detailed.length > 0) return;
