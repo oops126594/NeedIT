@@ -43,3 +43,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Android signing secrets and Play bundle output
+/android/keystore.properties
+/android/**/*.jks
+/android/**/*.keystore
+/release/
