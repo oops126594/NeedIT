@@ -6,6 +6,7 @@ import { formatSar } from "@/lib/money";
 import { ORDER_FLOW, arrivalMinutes, canCancel, canRate } from "@/lib/orders";
 import { textOf } from "@/lib/text";
 import { BackButton } from "@/components/back-button";
+import { LiveDelivery } from "@/components/live-delivery";
 import { useShop } from "@/components/shop-provider";
 import { primaryButtonClass, secondaryButtonClass } from "@/components/styles";
 import { useAppLocale } from "@/components/use-app-locale";
@@ -87,7 +88,15 @@ export function OrderTracker({ id }: { id: string }) {
               ? t("delivered")
               : t("eta", { range })}
       </p>
-      <p className="text-sm text-muted">{order.persistedStatus ? t("savedNote") : t("simulated")}</p>
+      <p className="text-sm text-muted">
+        {order.courierName ? t("partnerNote", { name: order.courierName.split(" ")[0] ?? order.courierName }) : order.persistedStatus ? t("savedNote") : t("simulated")}
+      </p>
+      <LiveDelivery
+        order={order}
+        onOrder={(next) => {
+          setRemote(fromServer(next));
+        }}
+      />
       {order.frozenStatus ? (
         <p className="text-sm font-medium text-danger">{t(`status.${order.status}`)}</p>
       ) : (

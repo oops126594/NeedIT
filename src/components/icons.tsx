@@ -18,6 +18,16 @@ function Glyph({ className, children }: { className?: string; children: ReactNod
   );
 }
 
+export function MicIcon({ className }: { className?: string }) {
+  return (
+    <Glyph className={className}>
+      <rect x="9" y="3.5" width="6" height="10" rx="3" />
+      <path d="M7 11a5 5 0 0 0 10 0" />
+      <path d="M12 16v3.5M9 19.5h6" />
+    </Glyph>
+  );
+}
+
 export function SearchIcon({ className }: { className?: string }) {
   return (
     <Glyph className={className}>

@@ -1,7 +1,7 @@
 "use client";
 
 import { Link, useRouter } from "@/i18n/navigation";
-import { PILOT_ADMIN, PILOT_MERCHANT } from "@/lib/pilot-accounts";
+import { PILOT_ADMIN, PILOT_COURIERS, PILOT_MERCHANT } from "@/lib/pilot-accounts";
 import { isSaudiMobile } from "@/lib/validate";
 import { LanguageChoices, LocationChoices } from "@/components/app-shell";
 import { fieldClass, primaryButtonClass, secondaryButtonClass } from "@/components/styles";
@@ -13,7 +13,7 @@ type SessionUser = {
   id: string;
   name: string;
   email: string;
-  role: "CUSTOMER" | "MERCHANT" | "ADMIN";
+  role: "CUSTOMER" | "MERCHANT" | "ADMIN" | "COURIER";
   storeId?: string;
 };
 
@@ -117,7 +117,13 @@ export function AccountPanel({ nextPath }: { nextPath: string }) {
           <h2 className="font-semibold">{t("signedIn", { name: user.name })}</h2>
           <p className="mt-1 text-sm text-muted">{user.email}</p>
           <p className="mt-1 text-sm">
-            {user.role === "ADMIN" ? t("roleAdmin") : user.role === "MERCHANT" ? t("roleMerchant") : t("roleCustomer")}
+            {user.role === "ADMIN"
+              ? t("roleAdmin")
+              : user.role === "MERCHANT"
+                ? t("roleMerchant")
+                : user.role === "COURIER"
+                  ? t("roleCourier")
+                  : t("roleCustomer")}
           </p>
           <div className="mt-4 flex flex-col gap-2">
             {user.role === "MERCHANT" ? (
@@ -128,6 +134,11 @@ export function AccountPanel({ nextPath }: { nextPath: string }) {
             {user.role === "ADMIN" ? (
               <Link href="/admin" className="text-sm font-semibold text-accent-text">
                 {t("admin")}
+              </Link>
+            ) : null}
+            {user.role === "COURIER" ? (
+              <Link href="/courier" className="text-sm font-semibold text-accent-text">
+                {t("courier")}
               </Link>
             ) : null}
             <button type="button" className={secondaryButtonClass} onClick={() => void signOut()}>
@@ -198,6 +209,13 @@ export function AccountPanel({ nextPath }: { nextPath: string }) {
               <br />
               {PILOT_MERCHANT.password}
             </p>
+            {PILOT_COURIERS.map((courier) => (
+              <p key={courier.id} className="mt-2">
+                {t("roleCourier")}: {courier.email}
+                <br />
+                {courier.password}
+              </p>
+            ))}
           </section>
         </section>
       ) : null}

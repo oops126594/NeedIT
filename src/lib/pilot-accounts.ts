@@ -12,3 +12,20 @@ export const PILOT_MERCHANT = {
   name: "Farah Merchant",
   storeId: "farah",
 };
+
+export const PILOT_COURIERS = [
+  {
+    id: "courier-bayan",
+    email: "courier.bayan@needit.test",
+    password: PILOT_PASSWORD,
+    name: "Bayan Al Harbi",
+    phone: "0551112233",
+  },
+  {
+    id: "courier-fahad",
+    email: "courier.fahad@needit.test",
+    password: PILOT_PASSWORD,
+    name: "Fahad Al Otaibi",
+    phone: "0554445566",
+  },
+] as const;

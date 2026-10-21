@@ -11,6 +11,8 @@ const bodySchema = z.object({
     district: z.string().trim().min(2),
     line: z.string().trim().min(4),
     instructions: z.string().trim().max(200),
+    lat: z.number().gte(-90).lte(90).optional(),
+    lng: z.number().gte(-180).lte(180).optional(),
   }),
   paymentMethod: z.enum(["COD", "CARD"]),
   cardLast4: z.string().regex(/^\d{4}$/).optional(),

@@ -96,6 +96,8 @@ export function CheckoutForm() {
         district: district.trim(),
         line: line.trim(),
         instructions: instructions.trim(),
+        lat: shop.place?.lat ?? getLocation(locationId).lat,
+        lng: shop.place?.lng ?? getLocation(locationId).lng,
       },
       paymentMethod: payment,
       cardLast4: last4,

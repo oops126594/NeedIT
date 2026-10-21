@@ -3,7 +3,7 @@ import { cookies } from "next/headers";
 
 export const SESSION_COOKIE = "needit_session";
 
-export type SessionRole = "CUSTOMER" | "MERCHANT" | "ADMIN";
+export type SessionRole = "CUSTOMER" | "MERCHANT" | "ADMIN" | "COURIER";
 
 export type SessionClaims = {
   sub: string;
@@ -33,7 +33,7 @@ export async function readSession(): Promise<SessionClaims | null> {
   try {
     const { payload } = await jwtVerify(token, secret());
     const role = payload.role;
-    if (role !== "CUSTOMER" && role !== "MERCHANT" && role !== "ADMIN") return null;
+    if (role !== "CUSTOMER" && role !== "MERCHANT" && role !== "ADMIN" && role !== "COURIER") return null;
     if (!payload.sub) return null;
     const storeId = typeof payload.storeId === "string" ? payload.storeId : undefined;
     return { sub: payload.sub, role, storeId };

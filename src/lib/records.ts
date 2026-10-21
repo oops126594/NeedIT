@@ -1,5 +1,6 @@
 import { PRODUCTS, STORES } from "@/lib/catalog";
-import { PILOT_ADMIN, PILOT_PASSWORD } from "@/lib/pilot-accounts";
+import { courierBase, haversineKm, storePoint } from "@/lib/geo";
+import { PILOT_ADMIN, PILOT_COURIERS, PILOT_PASSWORD } from "@/lib/pilot-accounts";
 import { DELIVERY_FEE_HALALAS, lineTotal } from "@/lib/money";
 import { formatOrderId } from "@/lib/orders";
 import type {
@@ -17,7 +18,7 @@ import { mkdir, readFile, rename, writeFile } from "fs/promises";
 import { MongoClient, type Db } from "mongodb";
 import path from "path";
 
-export type UserRole = "CUSTOMER" | "MERCHANT" | "ADMIN";
+export type UserRole = "CUSTOMER" | "MERCHANT" | "ADMIN" | "COURIER";
 
 export type UserRecord = {
   id: string;
@@ -101,6 +102,14 @@ export type SavedOrder = {
   cardLast4?: string;
   etaMinMinutes: number;
   etaMaxMinutes: number;
+  courierId?: string;
+  courierName?: string;
+  courierPhone?: string;
+  courierLat?: number;
+  courierLng?: number;
+  courierUpdatedAt?: number;
+  tipHalalas?: number;
+  alternatePhone?: string;
   status: OrderStatus;
   rating?: number;
 };
@@ -120,7 +129,7 @@ type FileShape = {
 
 const FILE_PATH = path.join(process.cwd(), "data", "needit.json");
 
-const CONNECT_GENERATION = 2;
+const CONNECT_GENERATION = 3;
 
 const globalStore = globalThis as unknown as {
   mongo?: Db;
@@ -387,6 +396,14 @@ async function ensurePilotUsers(
       role: "ADMIN" as const,
     },
     ...merchantUsers(),
+    ...PILOT_COURIERS.map((courier) => ({
+      id: courier.id,
+      email: courier.email,
+      password: courier.password,
+      name: courier.name,
+      phone: courier.phone,
+      role: "COURIER" as const,
+    })),
   ];
   const known = new Set(existing.map((user) => user.email));
   for (const pilot of pilots) {
@@ -623,11 +640,147 @@ export async function merchantMove(
   });
 }
 
+const COURIER_ACTIVE = new Set<OrderStatus>(["COURIER_ASSIGNED", "PICKED_UP", "OUT_FOR_DELIVERY"]);
+const CUSTOMER_CAN_EDIT = new Set<OrderStatus>([
+  "PLACED",
+  "ACCEPTED",
+  "PREPARING",
+  "READY_FOR_PICKUP",
+  "COURIER_ASSIGNED",
+  "PICKED_UP",
+  "OUT_FOR_DELIVERY",
+]);
+
+async function listUserRecords(): Promise<UserRecord[]> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const docs = await globalStore.mongo.collection<UserRecord>("users").find({}).toArray();
+    return docs.map((doc) => stripId(doc) as UserRecord);
+  }
+  return withFile(async (data) => data.users);
+}
+
+async function pickCourier(storeId: string): Promise<UserRecord | null> {
+  const couriers = (await listUserRecords()).filter((user) => user.role === "COURIER");
+  if (couriers.length === 0) return null;
+  const orders = await listOrders({});
+  const busy = new Set(
+    orders.flatMap((order) => (order.courierId && COURIER_ACTIVE.has(order.status) ? [order.courierId] : [])),
+  );
+  const origin = storePoint(storeId);
+  return [...couriers].sort((left, right) => {
+    const leftBusy = busy.has(left.id) ? 1 : 0;
+    const rightBusy = busy.has(right.id) ? 1 : 0;
+    if (leftBusy !== rightBusy) return leftBusy - rightBusy;
+    return haversineKm(courierBase(left.id), origin) - haversineKm(courierBase(right.id), origin);
+  })[0] ?? null;
+}
+
+function withCourier(order: SavedOrder, courier: UserRecord): SavedOrder {
+  const base = courierBase(courier.id);
+  return {
+    ...order,
+    courierId: courier.id,
+    courierName: courier.name,
+    courierPhone: courier.phone,
+    courierLat: order.courierLat ?? base.lat,
+    courierLng: order.courierLng ?? base.lng,
+    courierUpdatedAt: order.courierUpdatedAt ?? Date.now(),
+  };
+}
+
 export async function advanceDelivery(orderId: string): Promise<SavedOrder | null> {
+  const current = await findOrder(orderId);
+  if (!current) return null;
+  const nextStatus = DELIVERY_MOVES[current.status];
+  if (!nextStatus) return null;
+  const needsCourier =
+    !current.courierId &&
+    (nextStatus === "COURIER_ASSIGNED" ||
+      nextStatus === "PICKED_UP" ||
+      nextStatus === "OUT_FOR_DELIVERY" ||
+      nextStatus === "DELIVERED");
+  const courier = needsCourier ? await pickCourier(current.storeId) : null;
   return changeOrder(orderId, (order) => {
-    const next = DELIVERY_MOVES[order.status];
-    if (!next) return null;
-    return { ...order, status: next, updatedAt: Date.now() };
+    if (order.status !== current.status) return null;
+    const next: SavedOrder = { ...order, status: nextStatus, updatedAt: Date.now() };
+    return courier && !next.courierId ? withCourier(next, courier) : next;
+  });
+}
+
+export async function courierJobs(courierId: string): Promise<{ open: SavedOrder[]; mine: SavedOrder[] }> {
+  const orders = await listOrders({});
+  return {
+    open: orders.filter((order) => order.status === "READY_FOR_PICKUP" && !order.courierId),
+    mine: orders.filter((order) => order.courierId === courierId && order.status !== "CANCELLED" && order.status !== "REJECTED"),
+  };
+}
+
+export async function claimDelivery(orderId: string, courier: PublicUser): Promise<SavedOrder | null> {
+  return changeOrder(orderId, (order) => {
+    if (order.status !== "READY_FOR_PICKUP" || order.courierId) return null;
+    const base = courierBase(courier.id);
+    return {
+      ...order,
+      status: "COURIER_ASSIGNED",
+      courierId: courier.id,
+      courierName: courier.name,
+      courierPhone: courier.phone,
+      courierLat: base.lat,
+      courierLng: base.lng,
+      courierUpdatedAt: Date.now(),
+      updatedAt: Date.now(),
+    };
+  });
+}
+
+const COURIER_MOVES: Record<string, { from: OrderStatus; to: OrderStatus }> = {
+  pickup: { from: "COURIER_ASSIGNED", to: "PICKED_UP" },
+  enroute: { from: "PICKED_UP", to: "OUT_FOR_DELIVERY" },
+  deliver: { from: "OUT_FOR_DELIVERY", to: "DELIVERED" },
+};
+
+export async function courierMove(orderId: string, courierId: string, action: string): Promise<SavedOrder | null> {
+  const move = COURIER_MOVES[action];
+  if (!move) return null;
+  return changeOrder(orderId, (order) => {
+    if (order.courierId !== courierId || order.status !== move.from) return null;
+    return { ...order, status: move.to, updatedAt: Date.now() };
+  });
+}
+
+export async function courierLocate(
+  orderId: string,
+  courierId: string,
+  lat: number,
+  lng: number,
+): Promise<SavedOrder | null> {
+  return changeOrder(orderId, (order) => {
+    if (order.courierId !== courierId || !COURIER_ACTIVE.has(order.status)) return null;
+    return { ...order, courierLat: lat, courierLng: lng, courierUpdatedAt: Date.now(), updatedAt: Date.now() };
+  });
+}
+
+export async function updateCustomerDelivery(
+  orderId: string,
+  customerId: string,
+  patch: {
+    address?: DeliveryAddress;
+    alternatePhone?: string;
+    tipHalalas?: number;
+  },
+): Promise<SavedOrder | "closed" | null> {
+  const current = await findOrder(orderId);
+  if (!current || current.customerId !== customerId) return null;
+  if (!CUSTOMER_CAN_EDIT.has(current.status)) return "closed";
+  return changeOrder(orderId, (order) => {
+    if (order.customerId !== customerId || !CUSTOMER_CAN_EDIT.has(order.status)) return null;
+    return {
+      ...order,
+      address: patch.address ?? order.address,
+      alternatePhone: patch.alternatePhone === undefined ? order.alternatePhone : patch.alternatePhone || undefined,
+      tipHalalas: patch.tipHalalas ?? order.tipHalalas,
+      updatedAt: Date.now(),
+    };
   });
 }
 

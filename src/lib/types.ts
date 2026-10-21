@@ -57,6 +57,8 @@ export type DeliveryAddress = {
   district: string;
   line: string;
   instructions: string;
+  lat?: number;
+  lng?: number;
 };
 
 export type OrderLine = {
@@ -95,6 +97,14 @@ export type CustomerOrder = {
   cardLast4?: string;
   etaMinMinutes: number;
   etaMaxMinutes: number;
+  courierId?: string;
+  courierName?: string;
+  courierPhone?: string;
+  courierLat?: number;
+  courierLng?: number;
+  courierUpdatedAt?: number;
+  tipHalalas?: number;
+  alternatePhone?: string;
   frozenStatus?: FrozenStatus;
   notifiedStatus: OrderStatus;
   /** Set for orders stored on the server. Skips the prototype countdown. */
