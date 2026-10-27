@@ -8,6 +8,7 @@ import { useShop } from "@/components/shop-provider";
 import { primaryButtonClass } from "@/components/styles";
 import { useAppLocale } from "@/components/use-app-locale";
 import type { OrderStatus } from "@/lib/types";
+import type { ServiceRequest } from "@/lib/service-types";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 
@@ -24,6 +25,7 @@ export function OrderHistory() {
   const locale = useAppLocale();
   const { ready, orders } = useShop();
   const [saved, setSaved] = useState<ListedOrder[] | null>(null);
+  const [serviceRequests, setServiceRequests] = useState<ServiceRequest[]>([]);
 
   useEffect(() => {
     let alive = true;
@@ -37,6 +39,18 @@ export function OrderHistory() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/services")
+      .then(async (response) => {
+        if (!alive || !response.ok) return;
+        const data = (await response.json()) as { requests: ServiceRequest[] };
+        setServiceRequests(data.requests);
+      })
+      .catch(() => undefined);
+    return () => { alive = false; };
   }, []);
 
   if (!ready) return <p className="px-4 py-8 text-sm text-muted">{t("history")}</p>;
@@ -57,6 +71,22 @@ export function OrderHistory() {
   return (
     <div className="flex flex-col gap-4 px-4 py-5">
       <h1 className="text-2xl font-semibold">{t("historyTitle")}</h1>
+      {serviceRequests.length > 0 ? (
+        <section className="mb-2">
+          <h2 className="mb-3 text-lg font-bold">{t("serviceRequests")}</h2>
+          <ul className="grid gap-3 sm:grid-cols-2">
+            {serviceRequests.map((request) => (
+              <li key={request.id} className="friendly-card rounded-2xl p-4">
+                <span className="flex items-start justify-between gap-3">
+                  <span><span className="block font-bold">{request.kind === "HOME_DELIVERY" ? t("serviceDelivery") : t("serviceFuel")}</span><span className="mt-1 block text-xs text-muted">{request.id}</span></span>
+                  <span className="rounded-full bg-accent-soft px-2.5 py-1 text-xs font-bold text-accent-text">{t(`serviceStatus.${request.status}`)}</span>
+                </span>
+                <span className="mt-3 flex justify-between text-sm"><span className="text-muted">{formatTime(request.createdAt, locale)}</span><strong>{formatSar(request.estimatedTotalHalalas, locale)}</strong></span>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       {rows.length === 0 ? (
         <>
           <p className="text-muted">{t("empty")}</p>

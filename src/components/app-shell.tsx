@@ -16,9 +16,10 @@ import { BagIcon, BellIcon, CartIcon, HelpIcon, HomeIcon, PinIcon, UserIcon } fr
 import { useShop } from "@/components/shop-provider";
 import { useAppLocale } from "@/components/use-app-locale";
 import { useOrderAlerts, type AlertPermission } from "@/components/use-order-alerts";
+import Image from "next/image";
 
 const iconButtonClass =
-  "relative inline-flex size-11 items-center justify-center rounded-full text-ink hover:bg-paper";
+  "relative inline-flex size-11 items-center justify-center rounded-2xl text-ink transition hover:bg-accent-soft hover:text-accent-text";
 
 export function LocaleSwitch({ className }: { className?: string }) {
   const locale = useAppLocale();
@@ -138,17 +139,17 @@ export function AppShell({ children }: { children: ReactNode }) {
   ] as const;
 
   return (
-    <div className="relative flex min-h-dvh w-full flex-col bg-paper">
+    <div className="relative flex min-h-dvh w-full flex-col">
       <a
         href="#content"
         className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:m-3 focus:rounded-full focus:bg-accent focus:px-4 focus:py-2 focus:text-accent-ink"
       >
         {tCommon("skip")}
       </a>
-      <header className="sticky top-0 z-30 border-b border-line bg-white">
+      <header className="sticky top-0 z-30 border-b border-line/80 bg-white/90 shadow-[0_4px_24px_rgba(60,42,30,.05)] backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3 px-4 py-3">
-          <Link href="/" dir="ltr" aria-label="NEEDIT" className="inline-flex shrink-0 items-center">
-            <img src="/logo.png" alt="" className="h-12 w-auto" />
+          <Link href="/" locale={locale} dir="ltr" aria-label="NEEDIT home" className="inline-flex shrink-0 items-center rounded-2xl transition hover:-translate-y-0.5 hover:scale-105">
+            <Image src="/logo.png" alt="" width={150} height={48} priority className="h-12 w-auto drop-shadow-sm" />
           </Link>
           <button
             type="button"
@@ -191,7 +192,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             </button>
             <Link
               href="/cart"
-              className="inline-flex h-10 items-center gap-2 rounded-lg border border-line bg-white px-3 text-sm font-semibold"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-line bg-white px-3 text-sm font-semibold shadow-sm transition hover:border-accent/40 hover:bg-accent-soft"
               aria-label={t("cart")}
             >
               <CartIcon className="size-5" />
@@ -235,10 +236,10 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
         ) : null}
       </header>
-      <main id="content" className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-4 md:pb-10">
+      <main id="content" className="mx-auto w-full max-w-6xl flex-1 px-4 pb-24 pt-5 md:pb-12 md:pt-7">
         {children}
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-30 flex w-full border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
+      <nav className="fixed inset-x-3 bottom-3 z-30 flex overflow-hidden rounded-2xl border border-line bg-white/95 shadow-[0_12px_36px_rgba(60,42,30,.16)] pb-[env(safe-area-inset-bottom)] backdrop-blur-xl md:hidden">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (

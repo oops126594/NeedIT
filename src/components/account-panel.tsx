@@ -7,6 +7,7 @@ import { LanguageChoices, LocationChoices } from "@/components/app-shell";
 import { fieldClass, primaryButtonClass, secondaryButtonClass } from "@/components/styles";
 import { useAppLocale } from "@/components/use-app-locale";
 import { useTranslations } from "next-intl";
+import Image from "next/image";
 import { useEffect, useState, type FormEvent } from "react";
 
 type SessionUser = {
@@ -106,6 +107,57 @@ export function AccountPanel({ nextPath }: { nextPath: string }) {
     await fetch("/api/auth/logout", { method: "POST" });
     setUser(null);
     router.refresh();
+  }
+
+  if (!ready) {
+    return <div className="mx-auto mt-16 h-96 w-full max-w-5xl animate-pulse rounded-[2rem] bg-white/70" />;
+  }
+
+  if (!user) {
+    return (
+      <div className="relative mx-auto min-h-[calc(100dvh-10rem)] max-w-6xl overflow-hidden rounded-[2rem] bg-[#28243d] text-white shadow-[0_28px_80px_rgba(40,36,61,.25)]">
+        <div className="animate-drift absolute -start-20 -top-24 size-72 rounded-full bg-[#ff6657]/35 blur-sm" />
+        <div className="animate-float absolute -end-20 top-1/3 size-64 rounded-full bg-[#8bf0b1]/25 blur-sm" />
+        <div className="absolute bottom-0 start-1/3 size-52 rounded-full bg-[#ffd166]/15 blur-sm" />
+        <div className="relative grid min-h-[calc(100dvh-10rem)] lg:grid-cols-[1.05fr_.95fr]">
+          <section className="flex flex-col justify-between p-7 sm:p-10 lg:p-14">
+            <div>
+              <Image src="/logo.png" alt="NEEDIT" width={180} height={64} priority className="h-16 w-auto rounded-2xl bg-white/95 p-2 shadow-xl" />
+              <p className="mt-10 inline-flex rounded-full bg-[#8bf0b1]/15 px-3 py-1 text-sm font-bold text-[#8bf0b1]">{t("welcomeEyebrow")}</p>
+              <h1 className="mt-4 max-w-xl text-4xl font-black leading-tight sm:text-6xl">{t("welcomeTitle")}</h1>
+              <p className="mt-4 max-w-lg text-base leading-7 text-white/65 sm:text-lg">{t("welcomeBody")}</p>
+            </div>
+            <div className="mt-10 grid grid-cols-3 gap-3 text-center text-xs font-bold text-white/75">
+              <span className="rounded-2xl bg-white/7 p-3">🛵<span className="mt-1 block">{t("benefitFast")}</span></span>
+              <span className="rounded-2xl bg-white/7 p-3">📍<span className="mt-1 block">{t("benefitTrack")}</span></span>
+              <span className="rounded-2xl bg-white/7 p-3">🌱<span className="mt-1 block">{t("benefitLocal")}</span></span>
+            </div>
+          </section>
+          <section className="m-3 flex items-center rounded-[1.65rem] bg-[#fffaf4] p-5 text-ink sm:m-5 sm:p-8 lg:m-6 lg:p-10">
+            <div className="w-full">
+              <div className="mb-7 flex items-center justify-between gap-3">
+                <div><p className="text-sm font-bold text-accent-text">{t("hello")}</p><h2 className="mt-1 text-3xl font-black">{mode === "login" ? t("signIn") : t("register")}</h2></div>
+                <LanguageChoices />
+              </div>
+              <div className="mb-6 grid grid-cols-2 rounded-2xl bg-[#f3ebe4] p-1.5">
+                <button type="button" className={`h-11 rounded-xl text-sm font-bold ${mode === "login" ? "bg-white text-ink shadow-sm" : "text-muted"}`} onClick={() => { setMode("login"); setError(null); }}>{t("signIn")}</button>
+                <button type="button" className={`h-11 rounded-xl text-sm font-bold ${mode === "register" ? "bg-white text-ink shadow-sm" : "text-muted"}`} onClick={() => { setMode("register"); setError(null); }}>{t("register")}</button>
+              </div>
+              <form onSubmit={(event) => void onSubmit(event)} className="flex flex-col gap-4" noValidate>
+                {mode === "register" ? <><AuthField label={t("name")} value={name} onChange={setName} autoComplete="name" /><AuthField label={t("phone")} value={phone} onChange={setPhone} autoComplete="tel" inputMode="tel" /></> : null}
+                <AuthField label={t("email")} value={email} onChange={setEmail} autoComplete="email" type="email" />
+                <AuthField label={t("password")} value={password} onChange={setPassword} autoComplete={mode === "login" ? "current-password" : "new-password"} type="password" />
+                {error ? <p className="rounded-2xl bg-red-50 p-3 text-sm font-semibold text-danger">{error}</p> : null}
+                {mode === "login" ? <button type="button" className="self-start text-sm font-bold text-accent-text" onClick={() => void sendReset()} disabled={resetting}>{t("forgot")}</button> : null}
+                {resetNote ? <p className="text-sm text-muted">{resetNote}</p> : null}
+                <button type="submit" className={primaryButtonClass} disabled={pending}>{pending ? (mode === "login" ? t("signingIn") : t("creating")) : mode === "login" ? t("signInAction") : t("createAction")}</button>
+              </form>
+              <p className="mt-5 text-center text-xs leading-5 text-muted">{t("privacyNote")}</p>
+            </div>
+          </section>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -237,4 +289,8 @@ export function AccountPanel({ nextPath }: { nextPath: string }) {
       </div>
     </div>
   );
+}
+
+function AuthField({ label, value, onChange, type = "text", autoComplete, inputMode }: { label: string; value: string; onChange: (value: string) => void; type?: string; autoComplete: string; inputMode?: "tel" }) {
+  return <label className="text-sm font-bold"><span>{label}</span><input className={`${fieldClass} mt-2 h-14`} type={type} autoComplete={autoComplete} inputMode={inputMode} value={value} onChange={(event) => onChange(event.target.value)} /></label>;
 }

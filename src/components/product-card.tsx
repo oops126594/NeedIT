@@ -37,11 +37,11 @@ export function ProductCard({
 
   if (layout === "shelf") {
     return (
-      <article className="flex h-full flex-col rounded-xl border border-line bg-white p-2.5">
+      <article className="friendly-card flex h-full flex-col rounded-2xl p-2.5 transition duration-200 hover:-translate-y-1 hover:shadow-[0_18px_42px_rgba(60,42,30,.12)]">
         <Link
           href={`/products/${product.id}`}
           aria-label={textOf(product.name, locale)}
-          className="flex h-36 items-center justify-center overflow-hidden rounded-lg bg-white"
+          className="flex h-36 items-center justify-center overflow-hidden rounded-xl bg-[#fff7ef]"
         >
           <img src={productImage(product.id)} alt="" className="h-full w-full object-contain p-2" />
         </Link>
@@ -65,7 +65,7 @@ export function ProductCard({
   }
 
   return (
-    <article className="rounded-2xl border border-line bg-card p-3">
+    <article className="friendly-card rounded-2xl p-3 transition hover:-translate-y-0.5">
       <div className="flex gap-3">
         <img
           src={productImage(product.id)}

@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --paper: #f4f6f8;
-  --ink: #1c1c1c;
-  --muted: #666666;
-  --line: #e6e6e6;
+  --paper: #fffaf4;
+  --ink: #1f2430;
+  --muted: #69707d;
+  --line: #eadfd4;
   --card: #ffffff;
-  --accent: #178a3d;
+  --accent: #ff5c4d;
   --accent-ink: #ffffff;
-  --accent-text: #0f6b2e;
-  --accent-soft: #e7f6ec;
-  --saffron: #178a3d;
+  --accent-text: #c9342a;
+  --accent-soft: #fff0ed;
+  --saffron: #f4a623;
   --danger: #b42318;
   --warn: #b54708;
   color-scheme: light;
@@ -32,13 +32,48 @@
 }
 
 body {
-  background: var(--paper);
+  background:
+    radial-gradient(circle at 8% 4%, rgb(255 214 205 / 45%), transparent 24rem),
+    radial-gradient(circle at 92% 14%, rgb(184 235 222 / 45%), transparent 22rem),
+    var(--paper);
   color: var(--ink);
+  min-height: 100dvh;
 }
 
 ::selection {
-  background: #d7efe6;
+  background: #ffd7d1;
 }
+
+.friendly-card {
+  border: 1px solid rgb(234 223 212 / 85%);
+  background: rgb(255 255 255 / 88%);
+  box-shadow: 0 14px 40px rgb(60 42 30 / 7%);
+  backdrop-filter: blur(12px);
+}
+
+@keyframes rise-in {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes soft-float {
+  0%, 100% { transform: translate3d(0, 0, 0) rotate(0deg); }
+  50% { transform: translate3d(0, -12px, 0) rotate(2deg); }
+}
+
+@keyframes slow-drift {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(16px, -10px, 0); }
+}
+
+.animate-rise { animation: rise-in 520ms cubic-bezier(.2,.8,.2,1) both; }
+.animate-float { animation: soft-float 5s ease-in-out infinite; }
+.animate-drift { animation: slow-drift 8s ease-in-out infinite; }
+
+#content > * { animation: rise-in 420ms cubic-bezier(.2,.8,.2,1) both; }
+
+button, a, input, select, textarea { transition-duration: 180ms; }
+button:active, a:active { transform: scale(.98); }
 
 :focus-visible {
   outline: 2px solid var(--accent);

@@ -259,8 +259,8 @@ export function SearchForm({
           aria-describedby={error ? `${fieldId}-error` : phase !== "idle" ? `${fieldId}-listening` : undefined}
           className={
             variant === "bar"
-              ? "h-11 w-full rounded-xl border border-line bg-paper ps-10 pe-12 text-sm text-ink placeholder:text-muted"
-              : "h-12 w-full rounded-xl border border-line bg-paper ps-10 pe-12 text-base text-ink placeholder:text-muted"
+              ? "h-11 w-full rounded-2xl border border-line bg-white ps-10 pe-12 text-sm text-ink shadow-sm placeholder:text-muted focus:border-accent"
+              : "h-14 w-full rounded-2xl border border-white/70 bg-white ps-11 pe-12 text-base text-ink shadow-[0_10px_30px_rgba(73,45,30,.12)] placeholder:text-muted focus:border-accent"
           }
         />
         <button

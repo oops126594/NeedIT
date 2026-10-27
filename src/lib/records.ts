@@ -12,6 +12,7 @@ import type {
   StockStatus,
   Store,
 } from "@/lib/types";
+import type { ServiceRequest } from "@/lib/service-types";
 import bcrypt from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "crypto";
 import { mkdir, readFile, rename, writeFile } from "fs/promises";
@@ -125,6 +126,7 @@ type FileShape = {
   passwordResets: PasswordResetRecord[];
   carts: SavedCart[];
   promoSends: PromoSend[];
+  serviceRequests: ServiceRequest[];
 };
 
 const FILE_PATH = path.join(process.cwd(), "data", "needit.json");
@@ -161,6 +163,7 @@ function emptyFile(): FileShape {
     passwordResets: [],
     carts: [],
     promoSends: [],
+    serviceRequests: [],
   };
 }
 
@@ -906,13 +909,15 @@ export async function listPushSubscriptions(userId: string): Promise<PushSubscri
   return withFile(async (data) => (data.pushSubscriptions ?? []).filter((item) => item.userId === userId));
 }
 
-export async function deletePushSubscription(endpoint: string): Promise<void> {
+export async function deletePushSubscription(endpoint: string, userId?: string): Promise<void> {
   if ((await mode()) === "mongo" && globalStore.mongo) {
-    await globalStore.mongo.collection("pushSubscriptions").deleteOne({ endpoint });
+    await globalStore.mongo.collection("pushSubscriptions").deleteOne(userId ? { endpoint, userId } : { endpoint });
     return;
   }
   await withFile(async (data) => {
-    data.pushSubscriptions = (data.pushSubscriptions ?? []).filter((item) => item.endpoint !== endpoint);
+    data.pushSubscriptions = (data.pushSubscriptions ?? []).filter(
+      (item) => item.endpoint !== endpoint || (userId !== undefined && item.userId !== userId),
+    );
   });
 }
 
@@ -1050,14 +1055,19 @@ export async function markCartReminded(userId: string): Promise<void> {
   });
 }
 
-export async function listCustomers(): Promise<Array<{ id: string; email: string; name: string }>> {
+export async function listCustomers(): Promise<Array<{ id: string; email: string; name: string; phone: string; createdAt: number }>> {
   if ((await mode()) === "mongo" && globalStore.mongo) {
     const docs = await globalStore.mongo.collection<UserRecord>("users").find({ role: "CUSTOMER" }).toArray();
-    return docs.map((user) => ({ id: user.id, email: user.email, name: user.name }));
+    return docs.map((user) => ({ id: user.id, email: user.email, name: user.name, phone: user.phone, createdAt: user.createdAt }));
   }
   return withFile(async (data) =>
-    data.users.filter((user) => user.role === "CUSTOMER").map((user) => ({ id: user.id, email: user.email, name: user.name })),
+    data.users.filter((user) => user.role === "CUSTOMER").map((user) => ({ id: user.id, email: user.email, name: user.name, phone: user.phone, createdAt: user.createdAt })),
   );
+}
+
+export async function listCouriers(): Promise<PublicUser[]> {
+  const users = await listUserRecords();
+  return users.filter((user) => user.role === "COURIER").map(publicUser);
 }
 
 export async function promoWasSent(id: string): Promise<boolean> {
@@ -1083,4 +1093,58 @@ export function hideEmail(order: SavedOrder): SavedOrder {
   const { customerEmail, ...rest } = order;
   void customerEmail;
   return rest;
+}
+
+export async function createServiceRequest(
+  request: ServiceRequest,
+): Promise<ServiceRequest> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    await globalStore.mongo.collection<ServiceRequest>("serviceRequests").insertOne(request);
+    return request;
+  }
+  return withFile(async (data) => {
+    data.serviceRequests = data.serviceRequests ?? [];
+    data.serviceRequests.unshift(request);
+    return request;
+  });
+}
+
+export async function listServiceRequests(customerId: string): Promise<ServiceRequest[]> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const docs = await globalStore.mongo
+      .collection<ServiceRequest>("serviceRequests")
+      .find({ customerId })
+      .sort({ createdAt: -1 })
+      .toArray();
+    return docs.map((doc) => stripId(doc) as ServiceRequest);
+  }
+  return withFile(async (data) =>
+    (data.serviceRequests ?? []).filter((request) => request.customerId === customerId),
+  );
+}
+
+export async function listAllServiceRequests(): Promise<ServiceRequest[]> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const docs = await globalStore.mongo.collection<ServiceRequest>("serviceRequests").find({}).sort({ createdAt: -1 }).toArray();
+    return docs.map((doc) => stripId(doc) as ServiceRequest);
+  }
+  return withFile(async (data) => [...(data.serviceRequests ?? [])].sort((a, b) => b.createdAt - a.createdAt));
+}
+
+export async function updateServiceRequestStatus(
+  id: string,
+  status: ServiceRequest["status"],
+): Promise<ServiceRequest | null> {
+  if ((await mode()) === "mongo" && globalStore.mongo) {
+    const result = await globalStore.mongo.collection<ServiceRequest>("serviceRequests").findOneAndUpdate(
+      { id }, { $set: { status } }, { returnDocument: "after" },
+    );
+    return result ? (stripId(result) as ServiceRequest) : null;
+  }
+  return withFile(async (data) => {
+    const request = (data.serviceRequests ?? []).find((item) => item.id === id);
+    if (!request) return null;
+    request.status = status;
+    return request;
+  });
 }

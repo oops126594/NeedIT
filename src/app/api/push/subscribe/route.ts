@@ -13,7 +13,9 @@ const bodySchema = z.object({
 
 export async function POST(request: Request) {
   const user = await currentUser();
-  if (!user || user.role !== "CUSTOMER") return Response.json({ error: "auth" }, { status: 401 });
+  if (!user || (user.role !== "CUSTOMER" && user.role !== "COURIER")) {
+    return Response.json({ error: "auth" }, { status: 401 });
+  }
   const parsed = bodySchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "invalid" }, { status: 400 });
   await savePushSubscription({
@@ -31,6 +33,6 @@ export async function DELETE(request: Request) {
   if (!user) return Response.json({ error: "auth" }, { status: 401 });
   const parsed = z.object({ endpoint: z.string().url() }).safeParse(await request.json().catch(() => null));
   if (!parsed.success) return Response.json({ error: "invalid" }, { status: 400 });
-  await deletePushSubscription(parsed.data.endpoint);
+  await deletePushSubscription(parsed.data.endpoint, user.id);
   return Response.json({ ok: true });
 }

@@ -1,6 +1,7 @@
 import { alertCopy } from "@/lib/alert-copy";
 import {
   deletePushSubscription,
+  listCouriers,
   listPushSubscriptions,
   saveNotification,
   type SavedOrder,
@@ -53,7 +54,6 @@ export async function publishOrderAlert(order: SavedOrder): Promise<void> {
   };
   await saveNotification(note);
   const subscriptions = await listPushSubscriptions(order.customerId);
-  if (subscriptions.length === 0) return;
 
   const keys = await vapidKeys();
   webpush.setVapidDetails("mailto:admin@needit.test", keys.publicKey, keys.privateKey);
@@ -80,4 +80,44 @@ export async function publishOrderAlert(order: SavedOrder): Promise<void> {
       }
     }),
   );
+
+  const courierRecipients = order.status === "READY_FOR_PICKUP"
+    ? await listCouriers()
+    : order.courierId
+      ? (await listCouriers()).filter((courier) => courier.id === order.courierId)
+      : [];
+  await Promise.all(courierRecipients.map(async (courier) => {
+    const courierNote = {
+      id: `courier:${courier.id}:${order.id}:${order.status}`,
+      userId: courier.id,
+      orderId: order.id,
+      status: order.status,
+      kind: "order" as const,
+      title: { en: order.status === "READY_FOR_PICKUP" ? "New delivery available" : "Delivery updated", ar: order.status === "READY_FOR_PICKUP" ? "توصيلة جديدة متاحة" : "تم تحديث التوصيلة" },
+      body: { en: `${order.id} · ${order.storeName.en}`, ar: `${order.id} · ${order.storeName.ar}` },
+      href: "/courier",
+      read: false,
+      createdAt: Date.now(),
+    };
+    await saveNotification(courierNote);
+    const courierSubscriptions = await listPushSubscriptions(courier.id);
+    await Promise.all(courierSubscriptions.map(async (subscription) => {
+      const payload = JSON.stringify({
+        title: courierNote.title[subscription.locale],
+        body: courierNote.body[subscription.locale],
+        url: `/${subscription.locale}/courier`,
+        tag: courierNote.id,
+      });
+      try {
+        await webpush.sendNotification(
+          { endpoint: subscription.endpoint, keys: { p256dh: subscription.p256dh, auth: subscription.auth } },
+          payload,
+          { TTL: 60 * 60 },
+        );
+      } catch (error) {
+        const status = error instanceof WebPushError ? error.statusCode : 0;
+        if (status === 404 || status === 410) await deletePushSubscription(subscription.endpoint);
+      }
+    }));
+  }));
 }
